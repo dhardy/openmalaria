@@ -84,6 +84,8 @@ protected:
   void readDescriptiveWHM(istream& in);
   //@}
   
+  static const int MAX_INFECTIONS;
+  
   //!multiplicity of infection
   int _MOI;
   

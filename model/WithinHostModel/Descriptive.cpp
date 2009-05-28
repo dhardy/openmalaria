@@ -30,6 +30,9 @@
 
 using namespace std;
 
+const int DescriptiveWithinHostModel::MAX_INFECTIONS = 20;
+
+
 // -----  Initialization  -----
 
 DescriptiveWithinHostModel::DescriptiveWithinHostModel() :
@@ -62,8 +65,7 @@ void DescriptiveWithinHostModel::update (double age) {
 // -----  Simple infection adders/removers  -----
 
 void DescriptiveWithinHostModel::newInfection(){
-  //std::cout<<"MOI "<<_MOI<<std::endl;
-  if (_MOI <=  20) {
+  if (_MOI <= MAX_INFECTIONS) {
     _cumulativeInfections++;
     infections.push_back(new DescriptiveInfection(Simulation::simulationTime));
     _MOI++;
