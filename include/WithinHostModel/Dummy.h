@@ -28,7 +28,6 @@
 #include "WithinHostModel/DummyInfection.h"
 #include "drug.h"
 ;
-#include <iostream>
 
 using namespace std;
 
@@ -39,6 +38,7 @@ class Human;
 class DummyWithinHostModel : public WithinHostModel {
 public:
   DummyWithinHostModel();
+  DummyWithinHostModel(istream& in);
   ~DummyWithinHostModel();
   
 
@@ -67,7 +67,6 @@ public:
   virtual void immunityPenalisation();
   
   void write(ostream& out) const;
-  void read(istream& in);
 
 private:
   //TODO: check why we have 2 cumulativeh and cumulativeY params

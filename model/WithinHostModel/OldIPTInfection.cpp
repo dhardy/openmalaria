@@ -110,7 +110,7 @@ OldIPTInfection::OldIPTInfection (istream& in) :
   DescriptiveInfection (in)
 {
   in >> _gType.ID; 
-  in >> boolalpha >> _SPattenuate; 
+  in >> _SPattenuate; 
 }
 
 void OldIPTInfection::write (ostream& out) const {
@@ -122,5 +122,5 @@ void OldIPTInfection::write (ostream& out) const {
     out << _proteome->getProteomeID() << endl; 
   }
   out << _gType.ID << endl; 
-  out << boolalpha << _SPattenuate << endl; 
+  out << _SPattenuate << endl; 
 }

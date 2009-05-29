@@ -26,7 +26,6 @@
 #include "global.h"
 #include "WithinHostModel/Infection.h"
 
-#include <iostream>
 #include <list>
 
 using namespace std;
@@ -49,6 +48,9 @@ public:
   
   /// Create an instance using the appropriate model
   static WithinHostModel* createWithinHostModel ();
+  
+  /// Create an instance, loading from a checkpoint.
+  static WithinHostModel* createWithinHostModel (istream& in);
   //@}
   
   /// @brief Constructors, destructors and checkpointing functions
@@ -56,10 +58,10 @@ public:
   WithinHostModel() :
     _cumulativeInfections(0), _pTransToMosq(0.0)
   {}
+  WithinHostModel(istream& in);
   virtual ~WithinHostModel() {}
   
   virtual void write(ostream& out) const =0;
-  virtual void read(istream& in) =0;
   //@}
   
   virtual void update(double age) =0;

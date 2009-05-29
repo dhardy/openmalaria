@@ -24,7 +24,6 @@
 #include "global.h"
 #include "inputData.h"
 #include <cmath>
-#include <iostream>
 #include <stdexcept>
 
 /*

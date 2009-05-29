@@ -22,7 +22,6 @@
 #include <string>
 #include <string.h>
 #include <math.h>
-#include <iostream>
 #include <algorithm>
 #include "human.h"
 #include "simulation.h"
@@ -172,13 +171,10 @@ Human::Human(TransmissionModel& tm, int ID, int dateOfBirth, int simulationTime)
 // Load human from checkpoint
 Human::Human(istream& in, TransmissionModel& tm, int simulationTime) 
   : _perHostTransmission(in, tm), _simulationTime(simulationTime),
+    _withinHostModel(WithinHostModel::createWithinHostModel(in)),
     _caseManagement(CaseManagementModel::createCaseManagementModel(in)),
     _pathogenesisModel(PathogenesisModel::createPathogenesisModel(in))
 {
-  // NOTE: makes some unnecessary random calls
-  _withinHostModel = WithinHostModel::createWithinHostModel();
-  
-  _withinHostModel->read(in);
   in >> _dateOfBirth; 
   in >> _doomed; 
   in >> _ID; 
@@ -198,6 +194,28 @@ void Human::destroy() {
   delete _withinHostModel;
   delete _pathogenesisModel;
   delete _caseManagement; 
+}
+
+ostream& operator<<(ostream& out, const Human& human){
+  human._perHostTransmission.write (out);
+  human._withinHostModel->write(out);
+  human._caseManagement->write (out);
+  human._pathogenesisModel->write(out);
+  out << human._dateOfBirth << endl; 
+  out << human._doomed << endl; 
+  out << human._ID << endl ; 
+  out << human._lastVaccineDose << endl;
+  out << human._BSVEfficacy << endl; 
+  out << human._timeStepMaxDensity << endl; 
+  out << human._PEVEfficacy << endl; 
+  out << human._TBVEfficacy << endl; 
+  out << human._totalDensity << endl; 
+  out << human._ylag[0] << endl; 
+  out << human._ylag[1] << endl; 
+  out << human._ylag[2] << endl; 
+  out << human._ylag[3] << endl; 
+  
+  return out;
 }
 
 
@@ -414,27 +432,4 @@ double Human::infectiousness(){
   //	Include here the effect of transmission-blocking vaccination
   valinfectiousness=transmit*(1-_TBVEfficacy);
   return valinfectiousness;
-}
-
-
-ostream& operator<<(ostream& out, const Human& human){
-  human._perHostTransmission.write (out);
-  human._caseManagement->write (out);
-  human._pathogenesisModel->write(out);
-  human._withinHostModel->write(out);
-  out << human._dateOfBirth << endl; 
-  out << human._doomed << endl; 
-  out << human._ID << endl ; 
-  out << human._lastVaccineDose << endl;
-  out << human._BSVEfficacy << endl; 
-  out << human._timeStepMaxDensity << endl; 
-  out << human._PEVEfficacy << endl; 
-  out << human._TBVEfficacy << endl; 
-  out << human._totalDensity << endl; 
-  out << human._ylag[0] << endl; 
-  out << human._ylag[1] << endl; 
-  out << human._ylag[2] << endl; 
-  out << human._ylag[3] << endl; 
-  
-  return out;
 }

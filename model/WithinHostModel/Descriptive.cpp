@@ -41,11 +41,67 @@ DescriptiveWithinHostModel::DescriptiveWithinHostModel() :
   _innateImmunity=(double)W_GAUSS(0, sigma_i);
 }
 
+DescriptiveWithinHostModel::DescriptiveWithinHostModel(istream& in) :
+    WithinHostModel(in)
+{
+  readDescriptiveWHM (in);
+  
+  for(int i=0;i<_MOI;++i)
+    infections.push_back(new DescriptiveInfection(in));
+}
+
+DescriptiveWithinHostModel::DescriptiveWithinHostModel(istream& in, bool) :
+    WithinHostModel(in)
+{
+  readDescriptiveWHM (in);
+}
+
 DescriptiveWithinHostModel::~DescriptiveWithinHostModel() {
   clearAllInfections();
   if (Global::modelVersion & INCLUDES_PK_PD) {
     _proxy.destroy();
   }
+}
+
+
+// -----  Data checkpointing  -----
+
+void DescriptiveWithinHostModel::write(ostream& out) const {
+  writeDescriptiveWHM (out);
+}
+
+void DescriptiveWithinHostModel::readDescriptiveWHM (istream& in) {
+  in >> _MOI;
+  in >> patentInfections; 
+  in >> _cumulativeh;
+  in >> _cumulativeY;
+  in >> _cumulativeYlag;
+  in >> _innateImmunity; 
+  
+  if (Global::modelVersion & INCLUDES_PK_PD) {
+    _proxy.read (in);
+  }
+  
+  if (_MOI < 0 || _MOI > MAX_INFECTIONS)
+    throw checkpoint_error ("Error reading checkpoint (_MOI)");
+}
+
+void DescriptiveWithinHostModel::writeDescriptiveWHM(ostream& out) const {
+  out << _cumulativeInfections << endl; 
+  out << _pTransToMosq << endl;  
+  out << _MOI << endl; 
+  out << patentInfections << endl; 
+  out << _cumulativeh << endl;
+  out << _cumulativeY << endl;
+  out << _cumulativeYlag << endl;
+  out << _innateImmunity << endl; 
+  
+  if (Global::modelVersion & INCLUDES_PK_PD) {
+    _proxy.write (out);
+  }
+  
+  for(std::list<DescriptiveInfection*>::const_iterator iter=infections.begin(); iter != infections.end(); iter++)
+    (*iter)->write (out);
 }
 
 // -----  Update function, called each step  -----
@@ -212,56 +268,4 @@ void DescriptiveWithinHostModel::summarize(double age) {
     Simulation::gMainSummary->addToTotalInfections(age, _MOI);
     Simulation::gMainSummary->addToTotalPatentInfections(age, patentInfections);
   }
-}
-
-
-// -----  Data checkpointing  -----
-
-void DescriptiveWithinHostModel::read(istream& in) {
-  readDescriptiveWHM (in);
-
-  for(int i=0;i<_MOI;++i) {
-    infections.push_back(new DescriptiveInfection(in));
-  }
-}
-void DescriptiveWithinHostModel::write(ostream& out) const {
-  writeDescriptiveWHM (out);
-}
-
-void DescriptiveWithinHostModel::readDescriptiveWHM(istream& in) {
-  in >> _cumulativeInfections; 
-  in >> _pTransToMosq; 
-  in >> _MOI; 
-  in >> patentInfections; 
-  in >> _cumulativeh;
-  in >> _cumulativeY;
-  in >> _cumulativeYlag;
-  in >> _innateImmunity; 
-
-  if ( _MOI <  0) {
-    cerr << "Error reading checkpoint" << endl;
-    exit(-3);
-  }
-
-  if (Global::modelVersion & INCLUDES_PK_PD) {
-    _proxy.read (in);
-  }
-}
-
-void DescriptiveWithinHostModel::writeDescriptiveWHM(ostream& out) const {
-  out << _cumulativeInfections << endl; 
-  out << _pTransToMosq << endl;  
-  out << _MOI << endl; 
-  out << patentInfections << endl; 
-  out << _cumulativeh << endl;
-  out << _cumulativeY << endl;
-  out << _cumulativeYlag << endl;
-  out << _innateImmunity << endl; 
-  
-  if (Global::modelVersion & INCLUDES_PK_PD) {
-    _proxy.write (out);
-  }
-
-  for(std::list<DescriptiveInfection*>::const_iterator iter=infections.begin(); iter != infections.end(); iter++)
-    (*iter)->write (out);
 }

@@ -22,7 +22,6 @@
 
 #include "drug.h"
 
-#include <iostream>
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>

@@ -23,8 +23,6 @@
 #ifndef Hmod_oldwhost
 #define Hmod_oldwhost
 
-#include <iostream>
-#include "global.h"
 #include "WithinHostModel.h"
 #include "WithinHostModel/DescriptiveInfection.h"
 #include "drug.h"
@@ -37,9 +35,28 @@ class Human;
  */
 class DescriptiveWithinHostModel : public WithinHostModel {
 public:
+  /// Create a new WHM
   DescriptiveWithinHostModel();
+  /// Load a DescriptiveWithinHostModel, including infections.
+  DescriptiveWithinHostModel(istream& in);
   virtual ~DescriptiveWithinHostModel();
   
+  /** @brief Checkpointing of variables */
+  //@{
+  virtual void write(ostream& out) const;
+protected:
+  /** Special checkpointing constructor for derived use.
+   *
+   * Same as the other checkpointing constructor except that
+   * this one doesn't load infections. */
+  DescriptiveWithinHostModel(istream& in, bool derived);
+  /// Called by both checkpointing constructors
+  void readDescriptiveWHM(istream& in);
+  /// Called by write() and derived write() functions.
+  void writeDescriptiveWHM(ostream& out) const;
+  //@}
+  
+public:
   virtual void update(double age);
   
   virtual void summarize(double age);
@@ -64,9 +81,6 @@ public:
   
   virtual void immunityPenalisation();
   
-  virtual void write(ostream& out) const;
-  virtual void read(istream& in);
-  
 protected:
   /*!  SP drug action applies to each infection depending on genotype and when
   the individual had their last dose of SP */
@@ -74,15 +88,6 @@ protected:
   
   virtual void IPTattenuateAsexualDensity (DescriptiveInfection& infec);
   virtual void IPTattenuateAsexualMinTotalDensity (Human&);
-  
-  /** @brief Checkpointing of variables in DescriptiveWithinHostModel.
-   *
-   * Since read() and write() are replaced in sub-classes, having separately
-   * named methods allows the same code to be used in both classes. */
-  //@{
-  void writeDescriptiveWHM(ostream& out) const;
-  void readDescriptiveWHM(istream& in);
-  //@}
   
   static const int MAX_INFECTIONS;
   
@@ -94,7 +99,7 @@ protected:
    * Since infection models and within host models are very much intertwined,
    * the idea is that each WithinHostModel has its own list of infections. */
   std::list<DescriptiveInfection*> infections;
-
+  
   //!Cumulative parasite density since birth
   double _cumulativeY;
   

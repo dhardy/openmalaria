@@ -30,6 +30,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <iostream>
 using namespace std;
 
 /// Command-Line Option possibilities
