@@ -66,13 +66,13 @@ TransmissionModel::~TransmissionModel () {
 
 double TransmissionModel::getEIR (int simulationTime, PerHostTransmission& host) {
   if (Global::simulationMode == equilibriumMode)
-    return initialisationEIR[(simulationTime-1) % Global::intervalsPerYear];
+    return initialisationEIR[simulationTime % Global::intervalsPerYear];
   else
     return calculateEIR (simulationTime, host);
 }
 
 void TransmissionModel::updateKappa (double sumWeight, double sumWt_kappa) {
-  size_t tmod = (Simulation::simulationTime-1) % Global::intervalsPerYear;
+  size_t tmod = Simulation::simulationTime % Global::intervalsPerYear;
   //Prevent NaNs
   if (sumWeight == 0.0) {
     kappa[tmod] = 0.0;
@@ -98,7 +98,7 @@ void TransmissionModel::updateKappa (double sumWeight, double sumWt_kappa) {
 }
 
 void TransmissionModel::summarize (Summary& summary) {
-  summary.setNumTransmittingHosts(kappa[(Simulation::simulationTime-1) % Global::intervalsPerYear]);
+  summary.setNumTransmittingHosts(kappa[Simulation::simulationTime % Global::intervalsPerYear]);
   summary.setAnnualAverageKappa(_annualAverageKappa);
 }
 

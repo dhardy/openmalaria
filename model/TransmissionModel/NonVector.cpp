@@ -106,11 +106,11 @@ double NonVectorTransmission::calculateEIR(int simulationTime, PerHostTransmissi
       break;
     case dynamicEIR:
       if (Simulation::timeStep == 1) {
-	return initialisationEIR[(simulationTime-1) % Global::intervalsPerYear];
+	return initialisationEIR[simulationTime % Global::intervalsPerYear];
       } else {
-	return initialisationEIR[(simulationTime-1) % Global::intervalsPerYear] *
-            kappa[(simulationTime-nspore-1) % Global::intervalsPerYear] /
-            initialKappa[(simulationTime-nspore-1) % Global::intervalsPerYear];
+	return initialisationEIR[simulationTime % Global::intervalsPerYear] *
+            kappa[(simulationTime-nspore) % Global::intervalsPerYear] /
+            initialKappa[(simulationTime-nspore) % Global::intervalsPerYear];
       }
       break;
     default:	// Anything else.. don't continue silently

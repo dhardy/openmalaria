@@ -106,13 +106,14 @@ void Simulation::mainSimulation(){
     //Calculate the current progress
     BoincWrapper::reportProgress(relTimeInMainSim*(double(timeStep)/simulationDuration)+(1-relTimeInMainSim));
 #endif
-    //Here would be another place to write checkpoints. But then we need to save state of the surveys/events.
-    ++simulationTime;
-    ++timeStep;
     _population->update1();
-    if (timeStep == gMainSummary->getSurveyTimeInterval(gMainSummary->getSurveyPeriod()-1)) {
+    if (timeStep+1 == gMainSummary->getSurveyTimeInterval(gMainSummary->getSurveyPeriod()-1)) {
       _population->newSurvey();
     }
+    
+    ++simulationTime;
+    ++timeStep;
+    //Here would be another place to write checkpoints. But then we need to save state of the surveys/events.
   }
   delete _population;
   gMainSummary->writeSummaryArrays();
@@ -123,8 +124,9 @@ void Simulation::updateOneLifespan () {
   if (Global::clOptions & CLO::TEST_CHECKPOINTING)
     testCheckpointStep = Global::maxAgeIntervals / 2;
   while(simulationTime < Global::maxAgeIntervals) {
-    ++simulationTime;
     _population->update1();
+    
+    ++simulationTime;
     
 #ifndef WITHOUT_BOINC
     BoincWrapper::reportProgress (double(simulationTime) / Global::maxAgeIntervals * (1-relTimeInMainSim));

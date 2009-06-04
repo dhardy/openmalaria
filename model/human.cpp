@@ -396,12 +396,12 @@ double Human::infectiousness(){
   static const double tau= 0.066;
   static const double mu= -8.1;
   int agetstep=_simulationTime-_dateOfBirth;
-  /*
-    Original infectiousness model based on 5 day intervals updates
-    lagged variables only every 5 days and cannot compute infectiousness
-    for the first 20 days of the simulation
-  */
-  if ((agetstep*Global::interval >  20) && ( _simulationTime*Global::interval >  20)) {
+  /* Original infectiousness model based on 5 day intervals updates lagged 
+   variables only every 5 days and the infectiousness can only be calculated
+   on the forth 5-day interval update and later.
+   New humans don't get updated until the timestep after they're created,
+   wheras the first simulation timestep is 0, hence different values here. */
+  if ((agetstep*Global::interval > 20) && (_simulationTime*Global::interval > 15)) {
     double x=_ylag[1]+beta2*_ylag[2]+beta3*_ylag[3];
     if ( x <  0.001) {
       transmit=0.0;

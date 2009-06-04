@@ -28,7 +28,8 @@
 #include "summary.h"
 
 void Event::update(int simulationTime, int ageGroup, int diagnosis, int outcome){
-  if ((diagnosis == Diagnosis::INDIRECT_MALARIA_DEATH) || (simulationTime>(_time + CaseManagementModel::caseManagementMemory))){
+  if (diagnosis == Diagnosis::INDIRECT_MALARIA_DEATH ||
+      simulationTime>_time + CaseManagementModel::caseManagementMemory) {
     if (_time!=TIMESTEP_NEVER){
       Simulation::gMainSummary->report(*this);
     }

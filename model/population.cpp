@@ -160,7 +160,7 @@ void Population::setupPyramid(bool isCheckpoint){
   int cumulativePop=0;
   double totalCumPC = cumpc[_maxTimestepsPerLife-1];
   for (int j=1;j<_maxTimestepsPerLife; j++) {
-    int iage=_maxTimestepsPerLife-j-1;
+    int iage=_maxTimestepsPerLife-j;
     //Scale using the total cumpc
     cumpc[j]=cumpc[j]/totalCumPC;
     if (!isCheckpoint){
@@ -249,7 +249,7 @@ void Population::update1(){
   int nCounter=0;	//NCounter is the number of indivs per demogr age group
   int pCounter=0;	//PCounter is the number with patent infections, needed for prev in 20-25y
   //Nsize is the population size at time t allowing population growth
-  int Nsize = (int)(_populationSize * exp(rho*Simulation::simulationTime));
+  int Nsize = (int)(_populationSize * exp(rho*(Simulation::simulationTime+1)));
   int survivsSoFar = 0;
   
   // Is the individual in the age range to be pregnant? Set when age reaches appropriate range.
@@ -335,7 +335,7 @@ void Population::update1(){
   }	// end of per-human updates
   
   // Shared graphics: report infectiousness
-  if (Simulation::simulationTime % 6 ==  0) {
+  if (Simulation::simulationTime % 6 == 5) {
     for (int i=0; i < Simulation::gMainSummary->getNumOfAgeGroups(); i++)
       kappaByAge[i] /= nByAge[i];
     SharedGraphics::copyKappa(kappaByAge);
