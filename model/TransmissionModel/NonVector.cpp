@@ -117,6 +117,15 @@ double NonVectorTransmission::calculateEIR(int simulationTime, PerHostTransmissi
     default:	// Anything else.. don't continue silently
       throw xml_scenario_error ("Invalid simulation mode");
   }
+#ifdef DEBUG
+  if (!finite(eir)) {
+    ostringstream msg;
+    msg << "Error: non-vect eir is: " << eir
+	<< "\nkappa:\t" << kappa[(simulationTime-nspore-1) % Global::intervalsPerYear]
+	<< "\ninitialKappa:\t" << initialKappa[(simulationTime-nspore-1) % Global::intervalsPerYear] << endl;
+    throw overflow_error(msg.str());
+  }
+#endif
   return eir * getRelativeAvailability(ageInYears) * perHost.entoAvailability();
 }
 

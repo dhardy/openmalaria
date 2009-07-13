@@ -42,6 +42,7 @@ void InfectionIncidenceModel::init () {
   Simm=getParameter(Params::SIMM);
   EstarInv = 1.0/getParameter(Params::E_STAR);
   Xstar_pInv = 1.0/getParameter(Params::X_STAR_P);
+  cout << gamma_p << '\n' << Sinf<<'\n'<<Simm<<'\n'<<EstarInv<<'\n'<<Xstar_pInv<<endl;
   
   //TODO: Sanity check for sqrt and division by zero
   //! constant defining the constraint for the Gamma shape parameters
@@ -185,6 +186,11 @@ double InfectionIncidenceModel::susceptibility () {
 
 int InfectionIncidenceModel::numNewInfections (double effectiveEIR, double PEVEfficacy, PerHostTransmission& phTrans) {
   double expectedNumInfections = getModelExpectedInfections (effectiveEIR, phTrans);
+  if (!finite(effectiveEIR)) {
+    ostringstream out;
+    out << "Error: effectiveEIR is not finite: " << effectiveEIR << endl;
+    throw overflow_error (out.str());
+  }
   
   //Introduce the effect of vaccination. Note that this does not affect cumEIR.
   if (Vaccine::PEV.active) {

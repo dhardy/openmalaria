@@ -79,17 +79,17 @@ double TransmissionModel::getEIR (int simulationTime, PerHostTransmission& host,
 }
 
 void TransmissionModel::updateKappa (double sumWeight, double sumWt_kappa) {
+  // Want to test both sumWeight and sumWt_kappa are > 0.0.
+  // Assume sumWeight => sumWt_kappa (should be true)
+  if ((sumWt_kappa <= 0.0 /* || sumWeight == 0.0 */) && Global::simulationMode != equilibriumMode)
+    throw range_error ("sumWt_kappa is invalid");
+  
+  
   size_t tmod = (Simulation::simulationTime-1) % Global::intervalsPerYear;
-  //Prevent NaNs
-  if (sumWeight == 0.0) {
-    kappa[tmod] = 0.0;
-    cerr << "sW.eq.0" << endl;
-  } else {
-    kappa[tmod] = sumWt_kappa / sumWeight;
+  kappa[tmod] = sumWt_kappa / sumWeight;
 #ifdef DEBUG_PRINTING
-    cout << Simulation::simulationTime << '\t' << kappa[tmod] << endl;
+  cout << Simulation::simulationTime << '\t' << kappa[tmod] << endl;
 #endif
-  }
   
   //Calculate time-weighted average of kappa
   if (tmod == 0) {
