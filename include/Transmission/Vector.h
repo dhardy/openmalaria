@@ -95,11 +95,5 @@ private:
   /*NOTE: add NonHumanHosts data here:
   per-species parameters
   number of hosts */
-  
-  /** Timestep at which larviciding effects dissappear. */
-  int larvicidingEndStep;
-  /** One-minus larviciding effectiveness. I.e. emergence rate is multiplied by
-   * this parameter. */
-  double larvicidingIneffectiveness;
 };
 #endif
