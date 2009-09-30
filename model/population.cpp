@@ -20,7 +20,6 @@
 
 */
 #include "population.h"
-#include "util/BoincWrapper.h"
 #include "util/gsl.h"
 #include "inputData.h"
 #include "human.h"
@@ -306,7 +305,7 @@ void Population::newHuman(int dob){
 
 void Population::update1(){
   // This should be called before humans contract new infections in the simulation step.
-  _transmissionModel->advancePeriod (_population, Simulation::simulationTime);
+  _transmissionModel->advanceStep (_population, Simulation::simulationTime);
   
   int nCounter=0;	//NCounter is the number of indivs per demogr age group
   int pCounter=0;	//PCounter is the number with patent infections, needed for prev in 20-25y
@@ -316,17 +315,6 @@ void Population::update1(){
   
   // Is the individual in the age range to be pregnant? Set when age reaches appropriate range.
   bool isAtRiskOfFirstPregnancy = false;
-  
-  int noOfAgeGroupsSharedMem = std::max(Simulation::gMainSummary->getNumOfAgeGroups(),KappaArraySize);
-  double* kappaByAge = new double[noOfAgeGroupsSharedMem];
-  int* nByAge = new int[noOfAgeGroupsSharedMem];
-  for (int i=0; i<noOfAgeGroupsSharedMem; i++) {
-    kappaByAge[i] = 0.0;
-    nByAge[i] = 0;
-  }
-  //  Initialise the variable used for calculating infectiousness
-  double sumWt_kappa= 0.0;
-  double sumWeight  = 0.0;
   
   // Update each human in turn
   //std::cout<<" time " <<t<<std::endl;
@@ -339,19 +327,6 @@ void Population::update1(){
       iter=_population.erase(iter);
       continue;
     }
-    
-    //BEGIN summarise infectiousness
-    double ageYears = iter->getAgeInYears();
-    double availability = iter->perHostTransmission.entoAvailabilityNV(ageYears);
-    sumWeight += availability;
-    availability *= iter->probTransmissionToMosquito();
-    sumWt_kappa += availability;	//TODO: move with all kappa stuff to NonVector
-    
-    // kappaByAge and nByAge are used in the screensaver only
-    int ia = iter->ageGroup();
-    kappaByAge[ia] += availability;	// TODO: set independantly in Vector & NonVector models from something
-    ++nByAge[ia];
-    //END summarise infectiousness
     
     
     //BEGIN Population size & age structure
@@ -371,6 +346,7 @@ void Population::update1(){
     //END Population size & age structure
     
     //BEGIN Determine risk from maternal infection
+    double ageYears = iter->getAgeInYears();
     if(ageYears < 25.0) {
       if (ageYears >= 20.0) {
 	/* updates the counts of the number of individuals of child bearing age
@@ -397,13 +373,6 @@ void Population::update1(){
     ++iter;
   }	// end of per-human updates
   
-  // Shared graphics: report infectiousness
-  if (Simulation::simulationTime % 6 ==  0) {
-    for (int i=0; i < Simulation::gMainSummary->getNumOfAgeGroups(); i++)
-      kappaByAge[i] /= nByAge[i];
-    SharedGraphics::copyKappa(kappaByAge);
-  }
-  
   // increase population size to targetPop
   if (InitPopOpt && Simulation::simulationTime < Global::maxAgeIntervals) {
     // We only want people at oldest,
@@ -416,14 +385,6 @@ void Population::update1(){
     //++nCounter;
     ++cumPop;
   }
-  
-  // Calculate kappa (total infectiousness)
-  // Currently we use the same summed weights as before. Doing them here would
-  // be different because of out-migrated individuals and new births.
-  _transmissionModel->updateKappa (sumWeight, sumWt_kappa);
-  
-  delete [] nByAge;
-  delete [] kappaByAge;
 }
 
 int Population::targetCumPop (int ageTSteps, int targetPop) {

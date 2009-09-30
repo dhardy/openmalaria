@@ -63,15 +63,14 @@ public:
    * Emergence rate calculations assume only one type of host; i.e. it calculates
    * the rate for a stable situation before interventions are introduced. */
   void initMainSimulation (const std::list<Human>& population, int populationSize); 
-
+  
+  virtual void advanceStepCalcs (const std::list<Human>& population, int simulationTime, double& sumWeight, double& sumWt_kappa);
+  
   /** Calculates EIR (in adults).
    * 
    * \param simulationTime Time since start of simulation . */
   virtual double calculateEIR(int simulationTime, PerHostTransmission& host, double ageInYears); 
 
-  /** This needs to be called every interval. */
-  virtual void advancePeriod (const std::list<Human>& population, int simulationTime);
-  
   virtual void intervLarviciding (const scnXml::Larviciding&);
   
 private:
