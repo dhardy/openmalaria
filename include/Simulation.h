@@ -81,13 +81,20 @@ private:
   void writeCheckpoint();
   void readCheckpoint();
   
-  void write (ostream& out);
-  void read (istream& in);
+  template<class Archive>
+  void serialize(Archive &ar, const unsigned int)
+  {
+    ar & simulationTime;
+/*    _population->write (out);
+    DrugModel::writeStatic (out);*/
+    cout << "simulationTime: "<<simulationTime;
+  }
   //@}
   
   static int simPeriodEnd;
   static int totalSimDuration;
   
+  friend class boost::serialization::access;
   friend class VectorAnophelesSuite;
 };
 

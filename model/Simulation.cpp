@@ -31,7 +31,9 @@
 #include "Transmission/TransmissionModel.h"
 #include "inputData.h"
 #include <fstream>
-#include "gzstream.h"
+
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
 
 int Simulation::simPeriodEnd;
 int Simulation::totalSimDuration;
@@ -177,16 +179,14 @@ void Simulation::writeCheckpoint(){
   
   // Open the next checkpoint file for writing:
   ostringstream name;
-  name << CHECKPOINT << checkpointNum;
-  if (Global::compressCheckpoints) {
-    name << ".gz";
-    ogzstream out(name.str().c_str(), ios::out | ios::binary);
-    write (out);
-    out.close();
-  } else {
+  name << CHECKPOINT << checkpointNum << ".bin";
+  {
     ofstream out(name.str().c_str(), ios::out | ios::binary);
-    write (out);
-    out.close();
+//     boost::archive::binary_oarchive oa(out);
+    
+    timer::startCheckpoint ();
+//     oa << *this;
+    timer::stopCheckpoint ();
   }
   
   {	// Indicate which is the latest checkpoint file.
@@ -195,18 +195,6 @@ void Simulation::writeCheckpoint(){
     checkpointFile << checkpointNum;
     checkpointFile.close();
   }
-}
-
-void Simulation::write (ostream& out) {
-  if (out == NULL || !out.good())
-    throw new checkpoint_error ("Unable to write to file");
-  
-  timer::startCheckpoint ();
-  out.precision(20);
-  out << simulationTime << endl;
-  _population->write (out);
-  DrugModel::writeStatic (out);
-  timer::stopCheckpoint ();
 }
 
 void Simulation::readCheckpoint() {
@@ -219,42 +207,30 @@ void Simulation::readCheckpoint() {
   }
   // Open the latest file
   ostringstream name;
-  name << CHECKPOINT << checkpointNum;	// try uncompressed
-  ifstream in(name.str().c_str(), ios::in | ios::binary);
-  if (in.good()) {
-    read (in);
-    in.close();
-  } else {
-    name << ".gz";				// then compressed
-    igzstream in(name.str().c_str(), ios::in | ios::binary);
-    if (!in.good())
-      throw checkpoint_error ("Unable to read file");
-    read (in);
-    in.close();
+  name << CHECKPOINT << checkpointNum << ".bin";
+  {
+    ifstream in(name.str().c_str(), ios::in | ios::binary);
+    boost::archive::binary_iarchive ia(in);
+//     ia >> *this;
+    
+    // Is this necessary or does boost::archive do it?
+    // Read trailing white-space (final endl has not yet been read):
+    while (in.good() && isspace (in.peek()))
+      in.get();
+    if (!in.eof()) {	// if anything else is left
+      cerr << "Error (checkpointing): not the whole checkpointing file was read;";
+      ifstream *ifCP = dynamic_cast<ifstream*> (&in);
+      if (ifCP) {
+	streampos i = ifCP->tellg();
+	ifCP->seekg(0, ios_base::end);
+	cerr << ifCP->tellg()-i << " bytes remaining:";
+	ifCP->seekg (i);
+      } else	// igzstream can't seek
+	cerr << " remainder:" << endl;
+      cerr << endl << in.rdbuf() << endl;
+    }
   }
   
   gsl::rngLoadState (checkpointNum);
   cerr << "Loaded checkpoint from: " << name.str() << endl;
-}
-
-void Simulation::read (istream& in) {
-  in >> simulationTime;
-  _population->read(in);
-  DrugModel::readStatic (in);
-  
-  // Read trailing white-space (final endl has not yet been read):
-  while (in.good() && isspace (in.peek()))
-    in.get();
-  if (!in.eof()) {	// if anything else is left
-    cerr << "Error (checkpointing): not the whole checkpointing file was read;";
-    ifstream *ifCP = dynamic_cast<ifstream*> (&in);
-    if (ifCP) {
-      streampos i = ifCP->tellg();
-      ifCP->seekg(0, ios_base::end);
-      cerr << ifCP->tellg()-i << " bytes remaining:";
-      ifCP->seekg (i);
-    } else	// igzstream can't seek
-      cerr << " remainder:" << endl;
-    cerr << endl << in.rdbuf() << endl;
-  }
 }

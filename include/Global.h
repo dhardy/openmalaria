@@ -33,6 +33,11 @@
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
+
+// For checkpointing
+// See http://www.boost.org/doc/libs/1_40_0/libs/serialization/doc/index.html
+#include <boost/serialization/access.hpp>
+
 using namespace std;
 
 /// Command-Line Option possibilities

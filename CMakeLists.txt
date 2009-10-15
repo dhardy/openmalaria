@@ -44,7 +44,15 @@ endif (MSVC)
 find_package (XSD)
 find_package (XERCESC)
 find_package (GSL)
-find_package (Z)
+#SET(Boost_USE_STATIC_LIBS ON)
+#SET(Boost_USE_MULTITHREAD OFF)
+#set (BOOST_INCLUDEDIR "/usr/local/include/boost")
+#set (BOOST_LIBRARYDIR "/usr/local/lib")
+find_package (Boost 1.37.0 COMPONENTS serialization)
+if (NOT Boost_FOUND)
+  message (FATAL_ERROR "Unable to find boost headers/libraries.")
+endif (NOT Boost_FOUND)
+
 
 option (OM_BOINC_INTEGRATION "Set to enable integration of the BOINC client (otherwise it's not used).")
 if (OM_BOINC_INTEGRATION)
@@ -92,23 +100,24 @@ endif (UNIX)
 mark_as_advanced (BOINC_LIBRARIES PTHREAD_LIBRARIES)
 
 include_directories (SYSTEM
+  ${Boost_INCLUDE_DIRS}
   ${XSD_INCLUDE_DIRS}
   ${XERCESC_INCLUDE_DIRS}
   ${GSL_INCLUDE_DIRS}
-  ${Z_INCLUDE_DIRS}
 )
 include_directories (
   ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/model
 )
+link_directories (SYSTEM ${Boost_LIBRARY_DIRS})
 link_directories (${CMAKE_BINARY_DIR}/xsdcxx)
 
 add_executable (openMalaria model/openMalaria.cpp)
 
 target_link_libraries (openMalaria
   model
+  ${Boost_LIBRARIES}
   ${GSL_LIBRARIES}
   ${XERCESC_LIBRARIES}
-  ${Z_LIBRARIES}
   ${PTHREAD_LIBRARIES}
   ${BOINC_LIBRARIES}
 )
