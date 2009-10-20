@@ -27,15 +27,14 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include "Simulation.h"
 #include "inputData.h"
 #include "util/gsl.h"
-#include "summary.h"
 #include "intervention.h"
 #include "Transmission/TransmissionModel.h"
 #include "InfectionIncidenceModel.h"
 #include "Clinical/ClinicalModel.h"
 #include "WithinHost/DescriptiveIPT.h"	// only for summarizing
+#include "Surveys.h"
 
 
 /*
@@ -247,7 +246,7 @@ void Human::updateInterventionStatus() {
 	if (gsl::rngUniform() <  Vaccine::vaccineCoverage[_lastVaccineDose] &&
 	    Vaccine::targetAgeTStep[_lastVaccineDose] == ageTimeSteps) {
           vaccinate();
-          Simulation::gMainSummary->reportEPIVaccination(ageGroup());
+          Surveys.current->reportEPIVaccinations (ageGroup(), 1);
         }
       }
     }
@@ -259,7 +258,7 @@ void Human::updateInterventionStatus() {
 
 void Human::massVaccinate () {
   vaccinate();
-  Simulation::gMainSummary->reportMassVaccination(ageGroup());
+  Surveys.current->reportMassVaccinations (ageGroup(), 1);
 }
 void Human::vaccinate(){
   //Index to look up initial efficacy relevant for this dose.
@@ -286,7 +285,7 @@ void Human::clearInfections () {
 }
 
 int Human::ageGroup() const{
-  return Simulation::gMainSummary->ageGroup(getAgeInYears());
+  return Survey::ageGroup(getAgeInYears());
 }
 
 double Human::getAgeInYears() const{
@@ -294,15 +293,15 @@ double Human::getAgeInYears() const{
 }
 
 
-void Human::summarize(){
+void Human::summarize(Survey& survey) {
   if (DescriptiveIPTWithinHost::iptActive && clinicalModel->recentTreatment())
     return;	//NOTE: do we need this?
   
-  double age = getAgeInYears();
-  Simulation::gMainSummary->addToHost(age,1);
-  withinHostModel->summarize(age);
-  infIncidence->summarize (*Simulation::gMainSummary, age);
-  clinicalModel->summarize (*Simulation::gMainSummary, age);
+  size_t ageGrp = ageGroup();
+  survey.reportHosts (ageGrp, 1);
+  withinHostModel->summarize (survey, ageGrp);
+  infIncidence->summarize (survey, ageGrp);
+  clinicalModel->summarize (survey, ageGrp);
 }
 
 

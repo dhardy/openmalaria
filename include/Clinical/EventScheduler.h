@@ -54,6 +54,9 @@ public:
 private:
   void doCaseManagement (WithinHostModel& withinHostModel, double ageYears);
   
+  /// Report reportState and assioctated info to a survey, if anything.
+  void report ();
+  
   /// Current state of sickness
   Pathogenesis::State pgState;
   /// Worst state within reporting period

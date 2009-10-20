@@ -29,6 +29,7 @@
 int ClinicalModel::reportingPeriodMemory;
 vector<int> ClinicalModel::infantIntervalsAtRisk;
 vector<int> ClinicalModel::infantDeaths;
+double ClinicalModel::_nonMalariaMortality;
 
 
 // -----  static methods  -----
@@ -36,6 +37,8 @@ vector<int> ClinicalModel::infantDeaths;
 void ClinicalModel::init () {
   infantDeaths.resize(Global::intervalsPerYear);
   infantIntervalsAtRisk.resize(Global::intervalsPerYear);
+  _nonMalariaMortality=getParameter(Params::NON_MALARIA_INFANT_MORTALITY);
+  
   PathogenesisModel::init();
   if (Global::modelVersion & CLINICAL_EVENT_SCHEDULER)
     ClinicalEventScheduler::init();
@@ -54,6 +57,17 @@ ClinicalModel* ClinicalModel::createClinicalModel (istream& in) {
     return new ClinicalEventScheduler (in);
   else
     return new ClinicalImmediateOutcomes (in);
+}
+
+double ClinicalModel::infantAllCauseMort(){
+  double infantPropSurviving=1.0;	// use to calculate proportion surviving
+  for (size_t i=0;i<Global::intervalsPerYear; i++) {
+    // multiply by proportion of infants surviving at each interval
+    infantPropSurviving *= double(ClinicalModel::infantIntervalsAtRisk[i]-ClinicalModel::infantDeaths[i])
+      / double(ClinicalModel::infantIntervalsAtRisk[i]);
+  }
+  // Child deaths due to malaria (per 1000), plus non-malaria child deaths. Deaths per 1000 births is the return unit.
+  return (1.0 - infantPropSurviving) * 1000.0 + _nonMalariaMortality;
 }
 
 
@@ -92,14 +106,14 @@ void ClinicalModel::update (WithinHostModel& withinHostModel, double ageYears, i
   
   //indirect death: if this human's about to die, don't worry about further episodes:
   if (_doomed <= -35) {	//clinical episode 6 intervals before
-    latestReport.update(Simulation::simulationTime, Simulation::gMainSummary->ageGroup(ageYears), Diagnosis::INDIRECT_MALARIA_DEATH, Outcome::INDIRECT_DEATH);
+    latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), Diagnosis::INDIRECT_MALARIA_DEATH, Outcome::INDIRECT_DEATH);
     _doomed = DOOMED_INDIRECT;
     return;
   }
   if(ageTimeSteps == 1) {
     // Chance of neonatal mortality:
     if (NeonatalMortality::eventNeonatalMortality()) {
-      latestReport.update(Simulation::simulationTime, Simulation::gMainSummary->ageGroup(ageYears), Diagnosis::INDIRECT_MALARIA_DEATH, Outcome::INDIRECT_DEATH);
+      latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), Diagnosis::INDIRECT_MALARIA_DEATH, Outcome::INDIRECT_DEATH);
       _doomed = DOOMED_NEONATAL;
       return;
     }
@@ -113,13 +127,13 @@ void ClinicalModel::updateInfantDeaths (int ageTimeSteps) {
   if (ageTimeSteps <= (int)Global::intervalsPerYear){
     ++infantIntervalsAtRisk[ageTimeSteps-1];
     // Testing _doomed == -30 gives very slightly different results than
-    // testing _doomed == DOOMED_INDIRECT (due to sim. end?)
+    // testing _doomed == DOOMED_INDIRECT (due to above if(..))
     if (_doomed == DOOMED_COMPLICATED || _doomed == -30 || _doomed == DOOMED_NEONATAL){
       ++infantDeaths[ageTimeSteps-1];
     }
   }
 }
 
-void ClinicalModel::summarize (Summary& summary, double age) {
-  pathogenesisModel->summarize (summary, age);
+void ClinicalModel::summarize (Survey& survey, size_t ageGroup) {
+  pathogenesisModel->summarize (survey, ageGroup);
 }

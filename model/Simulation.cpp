@@ -25,7 +25,7 @@
 #include "util/timer.h"
 #include "util/gsl.h"
 #include "population.h"
-#include "summary.h"
+#include "Surveys.h"
 #include "Drug/DrugModel.h"
 #include "Global.h"
 #include "Transmission/TransmissionModel.h"
@@ -37,7 +37,6 @@ int Simulation::simPeriodEnd;
 int Simulation::totalSimDuration;
 int Simulation::simulationTime;
 int Simulation::timeStep = TIMESTEP_NEVER;
-Summary* Simulation::gMainSummary;
 
 
 Simulation::Simulation()
@@ -46,9 +45,7 @@ Simulation::Simulation()
   // We try to make initialization hierarchical (i.e. most classes initialise
   // through Population::init).
   gsl::setUp();
-  
-  gMainSummary = new Summary();
-  
+  Surveys.init();
   Population::init();
   _population = new Population();
   DrugModel::init();
@@ -56,9 +53,7 @@ Simulation::Simulation()
 
 Simulation::~Simulation(){
   //free memory
-  gMainSummary->clearSummaryParameters();
   Population::clear();
-  delete gMainSummary;
   
   gsl::tearDown();
 }
@@ -127,7 +122,7 @@ void Simulation::mainSimulation(){
   //TODO5D
   timeStep=0;
   _population->preMainSimInit();
-  gMainSummary->initialiseSummaries();
+  Surveys.incrementSurveyPeriod();
   
   while(simulationTime < simPeriodEnd) {
     _population->implementIntervention(timeStep);
@@ -137,13 +132,13 @@ void Simulation::mainSimulation(){
     ++simulationTime;
     _population->update1();
     ++timeStep;
-    if (timeStep == gMainSummary->getSurveyTimeInterval(gMainSummary->getSurveyPeriod())) {
+    if (timeStep == Surveys.nextTimestep) {
       _population->newSurvey();
     }
     //Here would be another place to write checkpoints. But then we need to save state of the surveys/events.
   }
   delete _population;
-  gMainSummary->writeSummaryArrays();
+  Surveys.writeSummaryArrays();
 }
 
 

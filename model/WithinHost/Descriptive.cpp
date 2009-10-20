@@ -24,7 +24,6 @@
 #include "WithinHost/Descriptive.h"
 #include "Simulation.h"
 #include "intervention.h"
-#include "summary.h"
 
 using namespace std;
 
@@ -229,14 +228,14 @@ void DescriptiveWithinHostModel::IPTattenuateAsexualMinTotalDensity () {}
 
 // -----  Summarize  -----
 
-void DescriptiveWithinHostModel::summarize(double age) {
+void DescriptiveWithinHostModel::summarize (Survey& survey, size_t ageGroup) {
   if (_MOI > 0) {
-    Simulation::gMainSummary->addToInfectedHost(age,1);
-    Simulation::gMainSummary->addToTotalInfections(age, _MOI);
-    Simulation::gMainSummary->addToTotalPatentInfections(age, patentInfections);
+    survey.reportInfectedHosts (ageGroup, 1);
+    survey.addToTotalInfections(ageGroup, _MOI);
+    survey.addToTotalPatentInfections(ageGroup, patentInfections);
   }
   if (parasiteDensityDetectible()) {
-    Simulation::gMainSummary->addToPatentHost(age, 1);
-    Simulation::gMainSummary->addToSumLogDensity(age, log(totalDensity));
+    survey.reportPatentHosts (ageGroup, 1);
+    survey.addToSumLogDensity(ageGroup, log(totalDensity));
   }
 }

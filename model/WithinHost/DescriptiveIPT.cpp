@@ -22,9 +22,9 @@
 #include "WithinHost/DescriptiveIPTInfection.h"
 #include "Simulation.h"
 #include "util/gsl.h"
-#include "summary.h"
 #include "intervention.h"
 #include "inputData.h"
+#include "Surveys.h"
 
 bool DescriptiveIPTWithinHost::iptActive = false;
 
@@ -174,7 +174,7 @@ void DescriptiveIPTWithinHost::IPTSetLastSPDose (int agetstep, int ageGroup) {
         */
         if (iptiEffect >=  10) {
           _lastSPDose=Simulation::simulationTime;
-          Simulation::gMainSummary->reportIPTDose(ageGroup);
+          Surveys.current->reportIPTDoses (ageGroup, 1);
         }
       }
     }
@@ -190,7 +190,7 @@ void DescriptiveIPTWithinHost::IPTiTreatment (int ageGroup) {
   // and also the treatment given when sick (trial-dependent)
   if (iptiEffect >= 10){
     _lastSPDose = Simulation::simulationTime;
-    Simulation::gMainSummary->reportIPTDose(ageGroup);
+    Surveys.current->reportIPTDoses (ageGroup, 1);
   }
 }
 

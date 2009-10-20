@@ -21,7 +21,7 @@
 #include "inputData.h"
 #include "Global.h"
 #include "Simulation.h"
-#include "summary.h"
+#include "Surveys.h"
 #include "util/gsl.h"
 #include "Clinical/ClinicalModel.h"
 #include <limits>
@@ -126,14 +126,14 @@ void OldCaseManagement::doCaseManagement (Pathogenesis::State pgState, WithinHos
 
 bool OldCaseManagement::uncomplicatedEvent(Event& latestReport, bool isMalaria, double ageYears){
   //ageGroup is not optimized
-  int agegroup=Simulation::gMainSummary->ageGroup(ageYears);
+  int agegroup=Survey::ageGroup(ageYears);
     int entrypoint = isMalaria ? Diagnosis::UNCOMPLICATED_MALARIA
                                : Diagnosis::NON_MALARIA_FEVER;
     int nextRegimen=getNextRegimen(Simulation::simulationTime, entrypoint, _tLastTreatment, _latestRegimen);
     if (probGetsTreatment[nextRegimen-1]*_treatmentSeekingFactor > (gsl::rngUniform())){
       _latestRegimen=nextRegimen;
       _tLastTreatment=Simulation::simulationTime;
-      Simulation::gMainSummary->reportTreatment(agegroup, _latestRegimen);
+      Surveys.current->reportTreatment(agegroup, _latestRegimen);
       
       if (probParasitesCleared[nextRegimen-1] > gsl::rngUniform()){
 	latestReport.update(Simulation::simulationTime, agegroup, entrypoint, Outcome::PARASITES_ARE_CLEARED_PATIENT_RECOVERS_OUTPATIENTS);
@@ -155,7 +155,7 @@ bool OldCaseManagement::severeMalaria(Event& latestReport, double ageYears, int&
   Set doomed=4 if the patient dies.
   */
 
-  int agegroup=Simulation::gMainSummary->ageGroup(ageYears);
+  int agegroup=Survey::ageGroup(ageYears);
   int isAdultIndex=1;
   if (ageYears >= 5.0) {
     isAdultIndex=0;
@@ -208,7 +208,7 @@ bool OldCaseManagement::severeMalaria(Event& latestReport, double ageYears, int&
   if (q[2] <= prandom) {
     _tLastTreatment = Simulation::simulationTime;
     _latestRegimen = nextRegimen;
-    Simulation::gMainSummary->reportTreatment(agegroup,_latestRegimen);
+    Surveys.current->reportTreatment(agegroup,_latestRegimen);
     
     if (q[5] <= prandom) {
       if (q[6] > prandom) {

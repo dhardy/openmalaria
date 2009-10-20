@@ -25,6 +25,7 @@
 
 #include "Global.h"
 #include "WithinHost/Infection.h"
+#include "Survey.h"
 
 #include <list>
 
@@ -64,7 +65,7 @@ public:
   
   virtual void update() =0;
 
-  virtual void summarize(double age) =0;
+  virtual void summarize(Survey& survey, size_t ageGroup) =0;
   
   //! Create a new infection requires that the human is allocated and current
   virtual void newInfection() =0;

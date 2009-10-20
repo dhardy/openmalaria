@@ -20,20 +20,18 @@
 
 */
 #include "Clinical/event.h"
-#include "Simulation.h"
 #include "inputData.h"
 #include "util/gsl.h"
 #include <algorithm>
 #include "Clinical/ClinicalModel.h"
-#include "summary.h"
+#include "Surveys.h"
 
 void Event::update(int simulationTime, int ageGroup, int diagnosis, int outcome){
   if ((diagnosis == Diagnosis::INDIRECT_MALARIA_DEATH) || (simulationTime>(_time + ClinicalModel::reportingPeriodMemory))){
-    if (_time!=TIMESTEP_NEVER){
-      Simulation::gMainSummary->report(*this);
-    }
+    report();
+    
     _time=simulationTime;
-    _surveyPeriod=Simulation::gMainSummary->getSurveyPeriod();
+    _surveyPeriod=Surveys.getSurveyPeriod();
     _ageGroup=ageGroup;
     _diagnosis=diagnosis;
     _outcome=outcome;
@@ -47,8 +45,87 @@ void Event::update(int simulationTime, int ageGroup, int diagnosis, int outcome)
 }
 
 Event::~Event () {
-  if (_time != TIMESTEP_NEVER)
-    Simulation::gMainSummary->report(*this);
+  report();
+}
+
+void Event::report () {
+  if (_time == TIMESTEP_NEVER)	// Nothing to report
+    return;
+  
+  switch (_diagnosis) {
+    case Diagnosis::NON_MALARIA_FEVER:
+      Surveys.at(_surveyPeriod)
+	.reportNonMalariaFevers (_ageGroup, 1);
+      break;
+    case Diagnosis::UNCOMPLICATED_MALARIA:
+      Surveys.at(_surveyPeriod)
+	.reportUncomplicatedEpisodes (_ageGroup, 1);
+      break;
+    case Diagnosis::SEVERE_MALARIA:
+      Surveys.at(_surveyPeriod)
+	.reportSevereEpisodes (_ageGroup, 1);
+      break;
+    case Diagnosis::INDIRECT_MALARIA_DEATH:
+      Surveys.at(_surveyPeriod)
+	.reportIndirectDeaths (_ageGroup, 1);
+      break;
+    default:
+      throw invalid_argument ("Unsupported diagnosis");
+  }
+  switch (_outcome) {
+    case Outcome::NO_CHANGE_IN_PARASITOLOGICAL_STATUS_NON_TREATED:
+      //do nothing
+      break;
+    case Outcome::NO_CHANGE_IN_PARASITOLOGICAL_STATUS_OUTPATIENTS:
+      //do nothing
+      break;
+    case Outcome::NO_CHANGE_IN_PARASITOLOGICAL_STATUS_INPATIENTS:
+      //do nothing
+      break;
+    case Outcome::PARASITES_ARE_CLEARED_PATIENT_RECOVERS_NON_TREATED:
+      //do nothing
+      break;
+    case Outcome::PARASITES_ARE_CLEARED_PATIENT_RECOVERS_OUTPATIENTS:
+      //do nothing
+      break;
+    case Outcome::PARASITES_ARE_CLEARED_PATIENT_RECOVERS_INPATIENTS:
+      Surveys.at(_surveyPeriod)
+	.reportHospitalRecoveries (_ageGroup, 1);
+      //TODO: we curr do not distinquish between treated vs untreated seqs.
+      break;
+    case Outcome::PARASITES_ARE_CLEARED_PATIENT_HAS_SEQUELAE_NON_TREATED:
+      Surveys.at(_surveyPeriod)
+	.reportSequelae (_ageGroup, 1);
+      break;
+    case Outcome::PARASITES_ARE_CLEARED_PATIENT_HAS_SEQUELAE_INPATIENTS:
+      Surveys.at(_surveyPeriod)
+	.reportSequelae (_ageGroup, 1)
+	.reportHospitalSequelae (_ageGroup, 1);
+      break;
+    case Outcome::PARASITES_NOT_CLEARED_PATIENT_HAS_SEQUELAE_NON_TREATED:
+      Surveys.at(_surveyPeriod)
+	.reportSequelae (_ageGroup, 1);
+      break;
+    case Outcome::PARASITES_NOT_CLEARED_PATIENT_HAS_SEQUELAE_INPATIENTS:
+      Surveys.at(_surveyPeriod)
+	.reportSequelae (_ageGroup, 1)
+	.reportHospitalSequelae (_ageGroup, 1);
+      break;
+    case Outcome::PATIENT_DIES_NON_TREATED:
+      Surveys.at(_surveyPeriod)
+	.reportDirectDeaths (_ageGroup, 1);
+      break;
+    case Outcome::PATIENT_DIES_INPATIENTS:
+      Surveys.at(_surveyPeriod)
+	.reportDirectDeaths (_ageGroup, 1)
+	.reportHospitalDeaths (_ageGroup, 1);
+      break;
+    case Outcome::INDIRECT_DEATH:
+      //do nothing
+      break;
+    default:
+      throw invalid_argument ("Unsupported outcome");
+  }
 }
 
 

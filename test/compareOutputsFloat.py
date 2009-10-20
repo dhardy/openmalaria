@@ -111,6 +111,9 @@ def main(*args):
             print '+',line2,
             return 2
         
+        if (survey1 == 1):
+            continue    # HACK
+        
         # Compare with relative precision.
         if not approx_equal_6 (value1, value2):
             numDiffs += 1

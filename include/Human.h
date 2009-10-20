@@ -22,6 +22,7 @@
 #include "Transmission/PerHostTransmission.h"
 #include "InfectionIncidenceModel.h"
 #include "WithinHost/WithinHostModel.h"
+#include "Survey.h"
 
 // Forward declaration
 class TransmissionModel;
@@ -119,7 +120,7 @@ public:
   //@}
   
   //! Summarize the state of a human individual.
-  void summarize();
+  void summarize(Survey& survey);
   
   /// Calculate chance of a biting mosquito becoming infected
   //TODO: per genotype?

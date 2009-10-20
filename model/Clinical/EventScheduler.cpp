@@ -24,6 +24,7 @@
 #include "WithinHost/WithinHostModel.h"
 #include "Simulation.h"
 #include "Clinical/DecisionEnums.d"
+#include "Surveys.h"
 
 //TODO: move to XML
 const int maxEpisodeLength = 28;
@@ -103,9 +104,7 @@ ClinicalEventScheduler::ClinicalEventScheduler (double cF, double tSF) :
 {}
 ClinicalEventScheduler::~ClinicalEventScheduler() {
   // If something still to report, do so now
-  if (reportState != Pathogenesis::NONE) {
-    Simulation::gMainSummary->report (reportState, _ageGroup, _surveyPeriod);
-  }
+  report ();
 }
 
 ClinicalEventScheduler::ClinicalEventScheduler (istream& in) :
@@ -167,12 +166,12 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
     // When an event occurs, if it's at least 28 days later than the first case,
     // we report the old episode and count the new case a new episode.
     if (Simulation::simulationTime > episodeStartTimestep + maxEpisodeLength) {
-      if (reportState != Pathogenesis::NONE)
-	Simulation::gMainSummary->report (reportState, _ageGroup, _surveyPeriod);
+      report ();
+      
       episodeStartTimestep = Simulation::simulationTime;
       reportState = Pathogenesis::NONE;
-      _surveyPeriod=Simulation::gMainSummary->getSurveyPeriod();
-      _ageGroup=Simulation::gMainSummary->ageGroup(ageYears);
+      _surveyPeriod=Surveys.getSurveyPeriod();
+      _ageGroup=Survey::ageGroup(ageYears);
     }
     
     if ((newState & pgState) & Pathogenesis::MALARIA)
@@ -266,13 +265,13 @@ void ClinicalEventScheduler::doCaseManagement (WithinHostModel& withinHostModel,
   if (pgState & Pathogenesis::MALARIA) {	// NOTE: report treatment shouldn't be done like this so it's handled correctly when treatment is cancelled
     if (pgState & Pathogenesis::COMPLICATED) {
       endPoints = &caseManagementEndPoints[ageIndex].caseSev;
-      Simulation::gMainSummary->reportTreatment(Simulation::gMainSummary->ageGroup(ageYears), 3);
+      Surveys.current->reportTreatments1(Survey::ageGroup(ageYears), 1);
     } else if (pgState & Pathogenesis::SECOND_CASE) {
       endPoints = &caseManagementEndPoints[ageIndex].caseUC2;
-      Simulation::gMainSummary->reportTreatment(Simulation::gMainSummary->ageGroup(ageYears), 2);
+      Surveys.current->reportTreatments2(Survey::ageGroup(ageYears), 1);
     } else {
       endPoints = &caseManagementEndPoints[ageIndex].caseUC1;
-      Simulation::gMainSummary->reportTreatment(Simulation::gMainSummary->ageGroup(ageYears), 1);
+      Surveys.current->reportTreatments3(Survey::ageGroup(ageYears), 1);
     }
   } else /*if (pgState & Pathogenesis::SICK) [true by above check]*/ {	// sick but not from malaria
     if (withinHostModel.parasiteDensityDetectible())
@@ -292,4 +291,34 @@ void ClinicalEventScheduler::doCaseManagement (WithinHostModel& withinHostModel,
     medicateQueue.back().seekingDelay = endPoints->decisions[decisionIndex] % 10;	// last digit
     lastCmDecision = endPoints->decisions[decisionIndex];
   }
+}
+
+void ClinicalEventScheduler::report () {
+  if (reportState == Pathogenesis::NONE)	// Nothing to report
+    return;
+  
+  Survey& survey = Surveys.at(_surveyPeriod);
+  
+  //NOTE: this happens slightly differently to old reporting; we still report
+  // sickness when the patient has indirect death.
+  if (reportState & Pathogenesis::MALARIA) {
+    if (reportState & Pathogenesis::COMPLICATED)
+      survey.reportSevereEpisodes (_ageGroup, 1);
+    else // UC or UC2
+      survey.reportUncomplicatedEpisodes (_ageGroup, 1);
+  } else if (reportState & Pathogenesis::SICK) {
+    survey.reportNonMalariaFevers (_ageGroup, 1);
+  }	// also possibility of nothing, but not reported in this case
+  
+  if (reportState & Pathogenesis::DIRECT_DEATH)
+    survey.reportDirectDeaths (_ageGroup, 1);
+  else if (reportState & Pathogenesis::INDIRECT_MORTALITY)
+    survey.reportIndirectDeaths (_ageGroup, 1);
+  else if (reportState & Pathogenesis::SEQUELAE)
+    survey.reportSequelae (_ageGroup, 1);
+  
+  //TODO: we don't know whether patient was in hospital or not
+  //survey.reportHospitalRecoveries (_ageGroup, 1);
+  //survey.reportHospitalSequelae (_ageGroup, 1);
+  //survey.reportHospitalDeaths (_ageGroup, 1);
 }

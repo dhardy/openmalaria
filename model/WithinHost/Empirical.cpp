@@ -23,7 +23,6 @@
 #include "util/gsl.h"
 #include "WithinHost/Empirical.h"
 #include "Simulation.h"
-#include "summary.h"
 #include "inputData.h"
 
 using namespace std;
@@ -128,15 +127,15 @@ void EmpiricalWithinHostModel::calculateDensities(double ageInYears, double BSVE
 
 // -----  Summarize  -----
 
-void EmpiricalWithinHostModel::summarize(double age) {
+void EmpiricalWithinHostModel::summarize (Survey& survey, size_t ageGroup) {
   if (_MOI > 0) {
-    Simulation::gMainSummary->addToInfectedHost(age,1);
-    Simulation::gMainSummary->addToTotalInfections(age, _MOI);
-    Simulation::gMainSummary->addToTotalPatentInfections(age, patentInfections);
+    survey.reportInfectedHosts (ageGroup, 1);
+    survey.addToTotalInfections(ageGroup, _MOI);
+    survey.addToTotalPatentInfections(ageGroup, patentInfections);
   }
   if (parasiteDensityDetectible()) {
-    Simulation::gMainSummary->addToPatentHost(age, 1);
-    Simulation::gMainSummary->addToSumLogDensity(age, log(totalDensity));
+    survey.reportPatentHosts (ageGroup, 1);
+    survey.addToSumLogDensity(ageGroup, log(totalDensity));
   }
 }
 

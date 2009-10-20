@@ -46,11 +46,11 @@ public:
   void update(int simulationTime, int ageGroup, int diagnosis, int outcome);
 
   int getDiagnosis() const {return _diagnosis;};
-  int getAgeGroup() const {return _ageGroup;};
-  int getSurveyPeriod() const {return _surveyPeriod;};
-  int getOutcome() const {return _outcome;};
   
 private:
+  /// Report our info to a survey, if anything.
+  void report ();
+  
   /// Timestep of event (TIMESTEP_NEVER if no event).
   int _time;
   //! survey period during which the event occured
