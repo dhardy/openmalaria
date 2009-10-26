@@ -78,7 +78,8 @@ void DescriptiveIPTWithinHost::clearParameters () {
 }
 
 DescriptiveIPTWithinHost::DescriptiveIPTWithinHost () :
-    _SPattenuationt(TIMESTEP_NEVER), _lastSPDose (TIMESTEP_NEVER), _lastIptiOrPlacebo (TIMESTEP_NEVER)
+    _SPattenuationt(TIMESTEP_NEVER), _lastSPDose (TIMESTEP_NEVER), _lastIptiOrPlacebo (TIMESTEP_NEVER),
+    _cumulativeInfections(0)
 {
   if (Global::modelVersion & INCLUDES_PK_PD) {
     throw xml_scenario_error ("DescriptiveIPTWithinHost not intended to work with DrugAction");
@@ -97,15 +98,17 @@ DescriptiveIPTWithinHost::DescriptiveIPTWithinHost (istream& in) :
   
   in >> _SPattenuationt;
   in >> _lastSPDose; 
-  in >> _lastIptiOrPlacebo; 
+  in >> _lastIptiOrPlacebo;
+  in >> _cumulativeInfections;
 }
 
 void DescriptiveIPTWithinHost::write(ostream& out) const {
-  writeDescriptiveWHM (out);
+  DescriptiveWithinHostModel::write (out);
   
   out << _SPattenuationt << endl;
   out << _lastSPDose << endl; 
-  out << _lastIptiOrPlacebo << endl; 
+  out << _lastIptiOrPlacebo << endl;
+  out << _cumulativeInfections << endl;
 }
 
 
@@ -234,7 +237,8 @@ void DescriptiveIPTWithinHost::IPTattenuateAsexualDensity (DescriptiveInfection&
 }
 
 void DescriptiveIPTWithinHost::IPTattenuateAsexualMinTotalDensity () {
-  if (Global::modelVersion & ATTENUATION_ASEXUAL_DENSITY) {
+  //NOTE: the _cumulativeInfections>0 check is probably unintended, but was extracted from other logic and put here to preserve results.
+  if (Global::modelVersion & ATTENUATION_ASEXUAL_DENSITY && _cumulativeInfections > 0) {
     if (_SPattenuationt > Simulation::simulationTime && totalDensity < 10) {
       totalDensity = 10;
       _cumulativeY += 10;

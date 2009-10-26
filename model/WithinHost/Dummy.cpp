@@ -47,8 +47,6 @@ DummyWithinHostModel::DummyWithinHostModel(istream& in) :
 {
   in >> _MOI; 
   in >> patentInfections; 
-  in >> cumulativeY;
-  in >> cumulativeh;
   in >> _cumulativeh;
   in >> _cumulativeY;
   in >> _cumulativeYlag;
@@ -60,13 +58,11 @@ DummyWithinHostModel::DummyWithinHostModel(istream& in) :
     infections.push_back(DummyInfection(in));
 }
 void DummyWithinHostModel::write(ostream& out) const {
-  writeWHM (out);
+  WithinHostModel::write (out);
   drugProxy->write (out);
   
   out << _MOI << endl; 
   out << patentInfections << endl; 
-  out << cumulativeY << endl;
-  out << cumulativeh << endl;
   out << _cumulativeh << endl;
   out << _cumulativeY << endl;
   out << _cumulativeYlag << endl;
@@ -76,39 +72,12 @@ void DummyWithinHostModel::write(ostream& out) const {
 }
 
 
-// -----  Update function, called each step  -----
-
-void DummyWithinHostModel::update () {
-  std::list<DummyInfection>::iterator i;
-  for(i=infections.begin(); i != infections.end(); i++){
-    i->multiplyDensity(drugProxy->getDrugFactor(i->getProteome()));
-  }
-  drugProxy->decayDrugs();
-}
-
-
 // -----  Simple infection adders/removers  -----
 
 void DummyWithinHostModel::newInfection(){
   if (_MOI < MAX_INFECTIONS) {
-    _cumulativeInfections++;
-    infections.push_back(DummyInfection(Simulation::simulationTime));
+        infections.push_back(DummyInfection(Simulation::simulationTime));
     _MOI++;
-  }
-}
-
-void DummyWithinHostModel::clearOldInfections(){
-  std::list<DummyInfection>::iterator iter=infections.begin();
-  while(iter != infections.end()){
-    int enddate=iter->getEndDate();
-    if (Simulation::simulationTime >= enddate) {
-      iter->destroy();
-      iter=infections.erase(iter);
-      _MOI--;
-    }
-    else{
-      iter++;
-    }
   }
 }
 
@@ -129,56 +98,38 @@ void DummyWithinHostModel::medicate(string drugName, double qty, int time, doubl
 }
 
 
-// -----  immunity  -----
-
-void DummyWithinHostModel::updateImmuneStatus(){
-  if (immEffectorRemain < 1){
-    _cumulativeh*=immEffectorRemain;
-    _cumulativeY*=immEffectorRemain;
-  }
-  if (asexImmRemain < 1){
-    _cumulativeh*=asexImmRemain/
-        (1+(_cumulativeh*(1-asexImmRemain)/Infection::cumulativeHstar));
-    _cumulativeY*=asexImmRemain/
-        (1+(_cumulativeY*(1-asexImmRemain)/Infection::cumulativeYstar));
-  }
-}
-
-void DummyWithinHostModel::immunityPenalisation() {
-  _cumulativeY=(double)_cumulativeYlag-(immPenalty_22*(_cumulativeY-_cumulativeYlag));
-  if (_cumulativeY <  0) {
-    _cumulativeY=0.0;
-  }
-}
-
-
 // -----  Density calculations  -----
 
 void DummyWithinHostModel::calculateDensities(double ageInYears, double BSVEfficacy) {
-  _cumulativeYlag = _cumulativeY;
+  updateImmuneStatus ();	// inout(_cumulativeh,_cumulativeY)
   
   patentInfections = 0;
   totalDensity = 0.0;
   timeStepMaxDensity = 0.0;
-  if (_cumulativeInfections >  0) {
-    cumulativeh=_cumulativeh;
-    cumulativeY=_cumulativeY;
-    std::list<DummyInfection>::iterator i;
-    for(i=infections.begin(); i!=infections.end(); i++){
-      i->determineWithinHostDensity();
-      timeStepMaxDensity=std::max((double)i->getDensity(), timeStepMaxDensity);
-      
-      totalDensity += i->getDensity();
-      //Compute the proportion of parasites remaining after innate blood stage effect
-      if (i->getDensity() > detectionLimit) {
-        patentInfections++;
-      }
-      if (i->getStartDate() == (Simulation::simulationTime-1)) {
-        _cumulativeh++;
-      }
-      _cumulativeY += Global::interval*i->getDensity();
+  for(std::list<DummyInfection>::iterator i=infections.begin(); i!=infections.end(); i++) {
+    if (Simulation::simulationTime >= i->getEndDate()) {
+      i->destroy();
+      i=infections.erase(i);
+      _MOI--;
+      continue;
     }
+    
+    i->multiplyDensity(drugProxy->getDrugFactor(i->getProteome()));
+    i->determineWithinHostDensity();
+    timeStepMaxDensity=std::max((double)i->getDensity(), timeStepMaxDensity);
+    
+    totalDensity += i->getDensity();
+    //Compute the proportion of parasites remaining after innate blood stage effect
+    if (i->getDensity() > detectionLimit) {
+      patentInfections++;
+    }
+    if (i->getStartDate() == (Simulation::simulationTime-1)) {
+      _cumulativeh++;
+    }
+    _cumulativeY += Global::interval*i->getDensity();
   }
+  
+  drugProxy->decayDrugs();
 }
 
 // -----  Summarize  -----

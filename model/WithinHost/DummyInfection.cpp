@@ -40,7 +40,7 @@ DummyInfection::DummyInfection(int simulationTime) :
 {
     //Initialize current infection data
     _startdate=simulationTime;
-    _density=4;
+    _density=8;	// increased by DH to avoid zeros in initialKappa
     _duration=infectionDuration(); 
     
     if (Global::modelVersion & INCLUDES_PK_PD)
@@ -59,7 +59,7 @@ int DummyInfection::infectionDuration(){
 }
 
 void DummyInfection::write (ostream& out) const {
-  writeInfection (out);
+  Infection::write (out);
   out << _duration << endl; 
 }
 

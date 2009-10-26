@@ -51,14 +51,10 @@ public:
   virtual void clearAllInfections();
   
   void medicate(string drugName, double qty, int time, double age);
-
+  
+  /** Update densities for timestep (taking into account blood-stage vaccine
+   * and drug efficacies. */
   void calculateDensities(double ageInYears, double BSVEfficacy);
-  
-  /*! Until now, this only includes decay of immunity against
-  asexual blood stages */
-  virtual void updateImmuneStatus();
-  
-  virtual void immunityPenalisation();
   
   void write(ostream& out) const;
   

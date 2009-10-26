@@ -107,14 +107,18 @@ WithinHostModel* WithinHostModel::createWithinHostModel (istream& in) {
 }
 
 WithinHostModel::WithinHostModel(istream& in) {
-  in >> _cumulativeInfections; 
   in >> totalDensity;
   in >> timeStepMaxDensity;
+  in >> _cumulativeh;
+  in >> _cumulativeY;
+  in >> _cumulativeYlag;
 }
-void WithinHostModel::writeWHM (ostream& out) const {
-  out << _cumulativeInfections << endl;
+void WithinHostModel::write (ostream& out) const {
   out << totalDensity << endl;
   out << timeStepMaxDensity << endl;
+  out << _cumulativeh << endl;
+  out << _cumulativeY << endl;
+  out << _cumulativeYlag << endl;
 }
 
 void WithinHostModel::clearInfections (bool) {
@@ -131,4 +135,31 @@ size_t WithinHostModel::getAgeGroup (double age) {
       return i;
   }
   return nages-1;	// final category
+}
+
+
+// -----  immunity  -----
+
+double WithinHostModel::immunitySurvivalFactor () {
+}
+
+void WithinHostModel::updateImmuneStatus(){
+  if (immEffectorRemain < 1){
+    _cumulativeh*=immEffectorRemain;
+    _cumulativeY*=immEffectorRemain;
+  }
+  if (asexImmRemain < 1){
+    _cumulativeh*=asexImmRemain/
+        (1+(_cumulativeh*(1-asexImmRemain)/Infection::cumulativeHstar));
+    _cumulativeY*=asexImmRemain/
+        (1+(_cumulativeY*(1-asexImmRemain)/Infection::cumulativeYstar));
+  }
+  _cumulativeYlag = _cumulativeY;
+}
+
+void WithinHostModel::immunityPenalisation() {
+  _cumulativeY=(double)_cumulativeYlag-(immPenalty_22*(_cumulativeY-_cumulativeYlag));
+  if (_cumulativeY <  0) {
+    _cumulativeY=0.0;
+  }
 }
