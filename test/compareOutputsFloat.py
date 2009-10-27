@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+#FIXME: won't compare one file equal to itself now.
 import sys
 import string
 import math
@@ -71,6 +72,17 @@ class TestApproxEqual (unittest.TestCase):
         self.assert_ (    approx_equal (0.000001, 0.0000009999995, 1e-6, 0))
 
 
+class ValIdentifier:
+    def __init__(self,s,g,m):
+        self.survey = s
+        self.ageGroup = g
+        self.measure = m
+    def __eq__(self,other):
+        return (self.survey != other.survey) or (self.ageGroup != other.ageGroup) or (self.measure != other.measure)
+    def __hash__(self):
+        return self.survey.__hash__() ^ self.ageGroup.__hash__() ^ self.measure.__hash__()
+
+
 def main(*args):
     maxDiffsToPrint=6
     if (len(args) == 4):
@@ -82,56 +94,66 @@ def main(*args):
         return 1
     
     print args[0]+" "+args[1]+" "+args[2]+" "+str(maxDiffsToPrint)
+    
+    values=dict()
+    values2=dict()
     file1=open(args[1], 'r')
+    for line1 in file1:
+        line_items1=string.split(line1)
+        key=ValIdentifier(int(line_items1[0]),int(line_items1[1]),int(line_items1[2]))
+        values[key]=float(line_items1[3])
+    
     file2=open(args[2], 'r')
-    line_count=0
     numDiffs=0
     perMeasureNumDiff = dict()
     perMeasureDiffSum = dict()
     perMeasureDiffAbsSum = dict()
-    for line1 in file1:
-        line_count+=1
-        
-        line_items1=string.split(line1)
-        survey1=int(line_items1[0])
-        ageGroup1=int(line_items1[1])
-        measure1=line_items1[2]
-        value1=float(line_items1[3])
-        
-        line2=file2.readline()
+    for line2 in file2:
         line_items2=string.split(line2)
-        survey2=int(line_items2[0])
-        ageGroup2=int(line_items2[1])
-        measure2=line_items2[2]
+        survey=int(line_items2[0])
+        ageGroup=int(line_items2[1])
+        measure=int(line_items2[2])
+        key2=ValIdentifier(survey,ageGroup,measure)
         value2=float(line_items2[3])
         
-        if (survey1 != survey2) or (measure1!=measure2) or (ageGroup1!=ageGroup2):
-            print "Different summary outputs {0}:".format(line_count)
-            print '-',line1,
-            print '+',line2,
-            return 2
+        if not key2 in values:
+            values2[key2]=value2
+            continue
+        value1=values[key2]
+        # Remove the value, so we can check all entries in values are in second file:
+        del values[key2]
         
-        if (survey1 == 1):
-            continue    # HACK
-        
-        # Compare with relative precision.
+        # Compare with relative precision
         if not approx_equal_6 (value1, value2):
             numDiffs += 1
-            perMeasureNumDiff[measure1] = perMeasureNumDiff.get(measure1,0) + 1;
+            perMeasureNumDiff[measure] = perMeasureNumDiff.get(measure,0) + 1;
             if (numDiffs <= maxDiffsToPrint):
-                print "line {0:>5}, survey {1:>3}, age group {2:>3}, measure {3:>3}:{4:>12.5f} ->{5:>12.5f}".format(line_count,survey1,ageGroup1,measure1,value1,value2)
+                print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{4:>12.5f} ->{5:>12.5f}".format(0,survey,ageGroup,measure,value1,value2)
                 if (numDiffs == maxDiffsToPrint):
                     print "[won't print any more line-by-line diffs]"
         
         # Sum up total difference per measure
-        perMeasureDiffSum[measure1]    = perMeasureDiffSum.get(measure1,0.0)    + value2 - value1
-        perMeasureDiffAbsSum[measure1] = perMeasureDiffAbsSum.get(measure1,0.0) + math.fabs(value2-value1)
-        
-        if(line_count % 100000 == 0):
-            print (line_count)
+        perMeasureDiffSum[measure]    = perMeasureDiffSum.get(measure,0.0)    + value2 - value1
+        perMeasureDiffAbsSum[measure] = perMeasureDiffAbsSum.get(measure,0.0) + math.fabs(value2-value1)
     
-    if (file2.readline() != ""):
-        print "file {0} has more lines than {1}".format(args[2],args[1])
+    if len(values):
+        print "{2} entries in {0} but not {1} (unordered excerpt):".format(args[1],args[2],len(values))
+        count = 0
+        for (key,val) in values.iteritems():
+            if count >= maxDiffsToPrint:
+                break
+            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{0:>12.5f}".format(val,key.survey,key.ageGroup,key.measure)
+            count += 1
+    if len(values2):
+        print "{2} entries in {0} but not {1} (unordered excerpt):".format(args[2],args[1],len(values2))
+        count = 0
+        for (key,val) in values2.iteritems():
+            if count >= maxDiffsToPrint:
+                break
+            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{0:>12.5f}".format(val,key.survey,key.ageGroup,key.measure)
+            count += 1
+    
+    if len(values) or len(values2):
         return 3
     
     for (measure,val) in perMeasureDiffAbsSum.iteritems():
