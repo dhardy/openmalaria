@@ -132,7 +132,7 @@ void Simulation::mainSimulation(){
     ++simulationTime;
     _population->update1();
     ++timeStep;
-    if (timeStep == Surveys.nextTimestep) {
+    if (timeStep == Surveys.currentTimestep) {
       _population->newSurvey();
     }
     //Here would be another place to write checkpoints. But then we need to save state of the surveys/events.

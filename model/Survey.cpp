@@ -1,17 +1,17 @@
 /* This file is part of OpenMalaria.
- * 
+ *
  * Copyright (C) 2005-2009 Swiss Tropical Institute and Liverpool School Of Tropical Medicine
- * 
+ *
  * OpenMalaria is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or (at
  * your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -27,37 +27,39 @@
 double Survey::_lowerbound;
 vector<double> Survey::_upperbound;
 bool Survey::active[NUM_SUMMARY_OPTIONS];
-bool Survey::_assimilatorMode; 
+bool Survey::_assimilatorMode;
 
 
-void Survey::init () {
+void Survey::init ()
+{
   const scnXml::Monitoring& mon = getMonitoring();
   const scnXml::AgeGroup::GroupSequence& groups = mon.getAgeGroup().getGroup();
   /* note that the last age group includes individuals who are        *
   * either younger than Lowerbound or older than the last Upperbound */
-  size_t numAgeGroups = groups.size()+1;
-  _upperbound.resize(numAgeGroups);
-  _lowerbound=mon.getAgeGroup().getLowerbound();
-  
-  for (size_t i=0;i<numAgeGroups-1; i++) {
+  size_t numAgeGroups = groups.size() + 1;
+  _upperbound.resize (numAgeGroups);
+  _lowerbound = mon.getAgeGroup().getLowerbound();
+
+  for (size_t i = 0;i < numAgeGroups - 1; i++) {
     _upperbound[i] = groups[i].getUpperbound();
   }
-  _upperbound[numAgeGroups-1]=DBL_MAX;
-  
+  _upperbound[numAgeGroups-1] = DBL_MAX;
+
   int sumOpt = get_summary_option();
   for (size_t i = 0; i < NUM_SUMMARY_OPTIONS; ++i)
     active[i] = sumOpt & (1 << i);
-  
-  _assimilatorMode=get_assim_mode();
+
+  _assimilatorMode = get_assim_mode();
 }
 
 
-int Survey::ageGroup(double age){
+int Survey::ageGroup (double age)
+{
   if (age < _lowerbound)
-    return _upperbound.size()-1;
-  
-  int valageGroup=0;
-  while( age > _upperbound[valageGroup]) {
+    return _upperbound.size() - 1;
+
+  int valageGroup = 0;
+  while (age > _upperbound[valageGroup]) {
     valageGroup++;
   }
   return valageGroup;
@@ -66,7 +68,8 @@ int Survey::ageGroup(double age){
 
 // -----  Non-static members  -----
 
-void Survey::reportTreatment (int ageGroup, int regimen) {
+void Survey::reportTreatment (int ageGroup, int regimen)
+{
   switch (regimen) {
     case 1:
       _numTreatments1[ageGroup]++;
@@ -82,62 +85,71 @@ void Survey::reportTreatment (int ageGroup, int regimen) {
   }
 }
 
-void Survey::addToTotalInfections(double age, int value){
-  _totalInfections[ageGroup(age)]+=value;
+void Survey::addToTotalInfections (double age, int value)
+{
+  _totalInfections[ageGroup (age) ] += value;
 }
-void Survey::addToTotalPatentInfections(double age, int value){
-  _totalPatentInfections[ageGroup(age)]+=value;
+void Survey::addToTotalPatentInfections (double age, int value)
+{
+  _totalPatentInfections[ageGroup (age) ] += value;
 }
-void Survey::addToSumLogDensity(double age, double value){
-  _sumLogDensity[ageGroup(age)]+=value;
+void Survey::addToSumLogDensity (double age, double value)
+{
+  _sumLogDensity[ageGroup (age) ] += value;
 }
-void Survey::addToPyrogenicThreshold(double age, double value){
-  _pyrogenicThreshold[ageGroup(age)]+=value;
+void Survey::addToPyrogenicThreshold (double age, double value)
+{
+  _pyrogenicThreshold[ageGroup (age) ] += value;
 }
-void Survey::addToSumX(double age, double value){
-  _sumX[ageGroup(age)]+=value;
+void Survey::addToSumX (double age, double value)
+{
+  _sumX[ageGroup (age) ] += value;
 }
-void Survey::setAnnualAverageKappa(double kappa){
-  _annualAverageKappa=kappa; 
+void Survey::setAnnualAverageKappa (double kappa)
+{
+  _annualAverageKappa = kappa;
 }
-void Survey::setNumTransmittingHosts(double value){
-  _numTransmittingHosts=value;
+void Survey::setNumTransmittingHosts (double value)
+{
+  _numTransmittingHosts = value;
 }
 
 
-void Survey::allocate () {
+void Survey::allocate ()
+{
   size_t numAgeGroups = _upperbound.size();
-  _numHosts.resize(numAgeGroups);
-  _numInfectedHosts.resize(numAgeGroups);
-  _numExpectedInfected.resize(numAgeGroups);
-  _numPatentHosts.resize(numAgeGroups);
-  _sumX.resize(numAgeGroups);
-  _sumLogDensity.resize(numAgeGroups);
-  _totalInfections.resize(numAgeGroups);
-  _totalPatentInfections.resize(numAgeGroups);
-  _contributionImmunity.resize(numAgeGroups);
-  _pyrogenicThreshold.resize(numAgeGroups);
-  _numTreatments1.resize(numAgeGroups);
-  _numTreatments2.resize(numAgeGroups);
-  _numTreatments3.resize(numAgeGroups);
-  _numNonMalariaFevers.resize(numAgeGroups);
-  _numUncomplicatedEpisodes.resize(numAgeGroups);
-  _numSevereEpisodes.resize(numAgeGroups);
-  _numDirectDeaths.resize(numAgeGroups);
-  _numIndirectDeaths.resize(numAgeGroups);
-  _numSequelae.resize(numAgeGroups);
-  _numHospitalDeaths.resize(numAgeGroups);
-  _numHospitalRecoveries.resize(numAgeGroups);
-  _numHospitalSequelae.resize(numAgeGroups);
-  _numEPIVaccinations.resize(numAgeGroups);
-  _numMassVaccinations.resize(numAgeGroups);
-  _numIPTDoses.resize(numAgeGroups);   
+  _numHosts.resize (numAgeGroups);
+  _numInfectedHosts.resize (numAgeGroups);
+  _numExpectedInfected.resize (numAgeGroups);
+  _numPatentHosts.resize (numAgeGroups);
+  _sumX.resize (numAgeGroups);
+  _sumLogDensity.resize (numAgeGroups);
+  _totalInfections.resize (numAgeGroups);
+  _totalPatentInfections.resize (numAgeGroups);
+  _contributionImmunity.resize (numAgeGroups);
+  _pyrogenicThreshold.resize (numAgeGroups);
+  _numTreatments1.resize (numAgeGroups);
+  _numTreatments2.resize (numAgeGroups);
+  _numTreatments3.resize (numAgeGroups);
+  _numNonMalariaFevers.resize (numAgeGroups);
+  _numUncomplicatedEpisodes.resize (numAgeGroups);
+  _numSevereEpisodes.resize (numAgeGroups);
+  _numDirectDeaths.resize (numAgeGroups);
+  _numIndirectDeaths.resize (numAgeGroups);
+  _numSequelae.resize (numAgeGroups);
+  _numHospitalDeaths.resize (numAgeGroups);
+  _numHospitalRecoveries.resize (numAgeGroups);
+  _numHospitalSequelae.resize (numAgeGroups);
+  _numEPIVaccinations.resize (numAgeGroups);
+  _numMassVaccinations.resize (numAgeGroups);
+  _numIPTDoses.resize (numAgeGroups);
 }
 
 
-void Survey::writeSummaryArrays (ostream& outputFile, int survey) {
+void Survey::writeSummaryArrays (ostream& outputFile, int survey)
+{
   if (active[nHost]) {
-    writeArray(outputFile, nHost, _assimilatorMode, survey, _numHosts);
+    writeArray (outputFile, nHost, _assimilatorMode, survey, _numHosts);
   }
   if (active[nInfect]) {
     writeArray (outputFile, nInfect, _assimilatorMode, survey, _numInfectedHosts);
@@ -217,7 +229,7 @@ void Survey::writeSummaryArrays (ostream& outputFile, int survey) {
   if (active[nNMFever]) {
     writeArray (outputFile, nNMFever, _assimilatorMode, survey, _numNonMalariaFevers);
   }
-  
+
   if (active[innoculationsPerDayOfYear]) {
     writeArray (outputFile, innoculationsPerDayOfYear, _assimilatorMode, survey, _innoculationsPerDayOfYear);
   }
@@ -231,16 +243,18 @@ void Survey::writeSummaryArrays (ostream& outputFile, int survey) {
 
 
 template <class T>
-void writeArray(ostream& file, int measure, bool assimilatorMode, int survey, vector<T>& array){
-  for(int j=0; j< (int) array.size()-1; j++) {	// Don't write out last age-group
+void writeArray (ostream& file, int measure, bool assimilatorMode, int survey, vector<T>& array)
+{
+  for (int j = 0; j < (int) array.size() - 1; j++) { // Don't write out last age-group
     if (!assimilatorMode)
-      file << survey << "\t" << j+1 << "\t" << measure;
+      file << survey << "\t" << j + 1 << "\t" << measure;
     file << "\t" << array[j] << lineEnd;
   }
 }
 
 template <class T>
-void writeArray(ostream& file, int measure, bool assimilatorMode, int survey, T& value){
+void writeArray (ostream& file, int measure, bool assimilatorMode, int survey, T& value)
+{
   if (!assimilatorMode)
     file << survey << "\t" << 0 << "\t" << measure;
   file << "\t" << value << lineEnd;

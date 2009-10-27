@@ -1,17 +1,17 @@
 /* This file is part of OpenMalaria.
- * 
+ *
  * Copyright (C) 2005-2009 Swiss Tropical Institute and Liverpool School Of Tropical Medicine
- * 
+ *
  * OpenMalaria is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or (at
  * your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -26,61 +26,64 @@
 
 SurveysType Surveys;
 
-void SurveysType::init () {
+void SurveysType::init ()
+{
   _surveyPeriod = 0;
-  
-  int numberOfSurveys=get_number_of_surveys();
-  _surveysTimeIntervals.resize(numberOfSurveys);
-  
-  for (int i=0;i<numberOfSurveys; i++) {
-    _surveysTimeIntervals[i]=get_time_of_survey(i);
+
+  int numberOfSurveys = get_number_of_surveys() + 1;
+  _surveysTimeIntervals.resize (numberOfSurveys);
+
+  for (int i = 1;i < numberOfSurveys; i++) {
+    _surveysTimeIntervals[i] = get_time_of_survey (i);
   }
-  nextTimestep = _surveysTimeIntervals[0];
-  
+  currentTimestep = _surveysTimeIntervals[0];
+
   Survey::init ();
-  
+
   _survey.resize (numberOfSurveys);
   for (size_t i = 0; i < _survey.size(); ++i)
     _survey[i].allocate();
   current = &_survey[0];
 }
 
-void SurveysType::incrementSurveyPeriod() {
+void SurveysType::incrementSurveyPeriod()
+{
   _surveyPeriod++;
-  if (_surveyPeriod < (int)_survey.size()) {
+  if (_surveyPeriod < (int) _survey.size()) {
     current = &_survey[_surveyPeriod];
-    nextTimestep = _surveysTimeIntervals[_surveyPeriod];
+    currentTimestep = _surveysTimeIntervals[_surveyPeriod];
   } else {
     _surveyPeriod = 0;
     current = &_survey[0];
-    nextTimestep = -1;
+    currentTimestep = -1;
   }
 }
 
-void SurveysType::writeSummaryArrays () {
-  string output_filename = BoincWrapper::resolveFile("output.txt");
+void SurveysType::writeSummaryArrays ()
+{
+  string output_filename = BoincWrapper::resolveFile ("output.txt");
   ifstream test (output_filename.c_str());
   if (test.is_open())
     throw runtime_error ("File output.txt exists!");
-  
+
   ofstream outputFile;
-  outputFile.open(output_filename.c_str());
-  
+  outputFile.open (output_filename.c_str());
+
   outputFile.width (0);
   // For additional control:
   //   outputFile.precision (6);
   //   outputFile << scientific;
-  
+
   for (size_t i = 1; i < _survey.size(); ++i)
     _survey[i].writeSummaryArrays (outputFile, i);
-  
+
   //Infant mortality rate is a single number, therefore treated separately
   //FIXME: Fetching data this way is extremely inconsistent with other reporting. Can it not also be constrained to a reporting period?
   if (Survey::active[imr_summary]) {
     if (!Survey::_assimilatorMode)
       outputFile << 1 << "\t" << 1 << "\t" << imr_summary;
-    outputFile << "\t" <<ClinicalModel::infantAllCauseMort() <<  lineEnd;
+    outputFile << "\t" << ClinicalModel::infantAllCauseMort() <<  lineEnd;
   }
-  
+
   outputFile.close();
 }

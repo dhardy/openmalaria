@@ -135,7 +135,7 @@ protected:
   
   /** Next event to report.
    * Only reported when the Human dies or a separate episode occurs. */
-  Event latestReport;
+  Event latestReport;	//FIXME: We have two "report" data pieces when using EventScheduler
   
   /** @brief Positive values of _doomed variable (codes). */
   enum {
