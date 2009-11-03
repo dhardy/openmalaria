@@ -105,7 +105,7 @@ public:
   void clearInfections();
   
   //! Determines the age group of a human
-  int ageGroup() const;
+  SurveyAgeGroup ageGroup() const;
   
   //! Get the age in years, based on current simulationTime.
   double getAgeInYears() const;

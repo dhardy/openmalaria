@@ -22,6 +22,7 @@
 #define Hmod_Episode
 
 #include "Global.h"
+#include "Survey.h"	//SurveyAgeGroup
 #include <ostream>
 
 /** Summary of clinical events during a caseManagementMemory period, in one individual.
@@ -33,11 +34,10 @@
  * bouts of sickness and recovery (the most severe is reported). */
 class Episode{
 public:
-  Episode() : _time(TIMESTEP_NEVER) {};
+  Episode() : _time(TIMESTEP_NEVER), _ageGroup(0) {};
+  Episode (istream& in);
   ~Episode();
-
-  friend ostream& operator<<(ostream& out, const Episode& event);
-  friend istream& operator>>(istream& in, Episode& event);
+  void write (ostream& out);
 
   /** Report an episode, its severity, and any outcomes it entails.
    *
@@ -45,7 +45,7 @@ public:
    * @param ageGroup Monitoring agegroup
    * @param newState The severity (diagnosis) and outcome.
    */
-  void update(int simulationTime, int ageGroup, Pathogenesis::State newState);
+  void update(int simulationTime, SurveyAgeGroup ageGroup, Pathogenesis::State newState);
   
   /** Return true if on last timestep that would be considered part of current
    * espisode (or later). */
@@ -77,7 +77,7 @@ private:
   //! TODO: we could use the survey array to map time to survey period. slower, but less memory.
   int _surveyPeriod;
   //! agegroup of the individual which experienced the episode
-  int _ageGroup;
+  SurveyAgeGroup _ageGroup;
   /// Descriptor of state, containing reporting info. Not all information will
   /// be reported (e.g. indirect deaths are reported independantly).
   Pathogenesis::State _state;

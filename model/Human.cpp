@@ -290,8 +290,8 @@ void Human::clearInfections () {
   withinHostModel->clearInfections(clinicalModel->latestDiagnosisIsSevereMalaria());
 }
 
-int Human::ageGroup() const{
-  return Survey::ageGroup(getAgeInYears());
+SurveyAgeGroup Human::ageGroup() const{
+  return SurveyAgeGroup(getAgeInYears());
 }
 
 double Human::getAgeInYears() const{
@@ -303,7 +303,7 @@ void Human::summarize(Survey& survey) {
   if (DescriptiveIPTWithinHost::iptActive && clinicalModel->recentTreatment())
     return;	//NOTE: do we need this?
   
-  size_t ageGrp = ageGroup();
+  SurveyAgeGroup ageGrp = ageGroup();
   survey.reportHosts (ageGrp, 1);
   withinHostModel->summarize (survey, ageGrp);
   infIncidence->summarize (survey, ageGrp);

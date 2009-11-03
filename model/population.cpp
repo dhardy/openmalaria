@@ -404,7 +404,6 @@ void Population::newSurvey () {
     iter->summarize(current);
   }
   _transmissionModel->summarize (current);
-  Surveys.incrementSurveyPeriod();
 }
 
 void Population::implementIntervention (int time) {

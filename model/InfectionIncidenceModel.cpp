@@ -141,7 +141,7 @@ double LogNormalMAII::getAvailabilityFactor(double baseAvailability) {
 		     BaselineAvailabilityShapeParam);
 }
 
-void InfectionIncidenceModel::summarize (Survey& survey, size_t ageGroup) {
+void InfectionIncidenceModel::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
   survey.reportExpectedInfected(ageGroup, _pinfected);
 }
 

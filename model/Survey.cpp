@@ -24,14 +24,22 @@
 
 // -----  Static members  -----
 
-double Survey::_lowerbound;
-vector<double> Survey::_upperbound;
+double SurveyAgeGroup::_lowerbound;
+vector<double> SurveyAgeGroup::_upperbound;
 bool Survey::active[NUM_SUMMARY_OPTIONS];
 bool Survey::_assimilatorMode;
 
 
-void Survey::init ()
-{
+void Survey::init () {
+  SurveyAgeGroup::init ();
+  
+  int sumOpt = get_summary_option();
+  for (size_t i = 0; i < NUM_SUMMARY_OPTIONS; ++i)
+    active[i] = sumOpt & (1 << i);
+
+  _assimilatorMode = get_assim_mode();
+}
+void SurveyAgeGroup::init () {
   const scnXml::Monitoring& mon = getMonitoring();
   const scnXml::AgeGroup::GroupSequence& groups = mon.getAgeGroup().getGroup();
   /* note that the last age group includes individuals who are        *
@@ -44,90 +52,51 @@ void Survey::init ()
     _upperbound[i] = groups[i].getUpperbound();
   }
   _upperbound[numAgeGroups-1] = DBL_MAX;
-
-  int sumOpt = get_summary_option();
-  for (size_t i = 0; i < NUM_SUMMARY_OPTIONS; ++i)
-    active[i] = sumOpt & (1 << i);
-
-  _assimilatorMode = get_assim_mode();
 }
 
-
-int Survey::ageGroup (double age)
-{
-  if (age < _lowerbound)
-    return _upperbound.size() - 1;
-
-  int valageGroup = 0;
-  while (age > _upperbound[valageGroup]) {
-    valageGroup++;
+SurveyAgeGroup::SurveyAgeGroup (double ageYears) {
+  if (ageYears < _lowerbound)
+    _i = _upperbound.size() - 1;
+  else {
+    _i = 0;
+    while (ageYears > _upperbound[_i])
+      _i++;
   }
-  return valageGroup;
 }
 
 
 // -----  Non-static members  -----
 
-void Survey::reportTreatment (int ageGroup, int regimen)
+void Survey::reportTreatment (SurveyAgeGroup ageGroup, int regimen)
 {
   switch (regimen) {
     case 1:
-      _numTreatments1[ageGroup]++;
+      _numTreatments1[ageGroup.i()]++;
       break;
     case 2:
-      _numTreatments2[ageGroup]++;
+      _numTreatments2[ageGroup.i()]++;
       break;
     case 3:
-      _numTreatments3[ageGroup]++;
+      _numTreatments3[ageGroup.i()]++;
       break;
     default:
       throw invalid_argument ("Unsupported regimen");
   }
 }
 
-void Survey::addToTotalInfections (double age, int value)
-{
-  _totalInfections[ageGroup (age) ] += value;
-}
-void Survey::addToTotalPatentInfections (double age, int value)
-{
-  _totalPatentInfections[ageGroup (age) ] += value;
-}
-void Survey::addToSumLogDensity (double age, double value)
-{
-  _sumLogDensity[ageGroup (age) ] += value;
-}
-void Survey::addToPyrogenicThreshold (double age, double value)
-{
-  _pyrogenicThreshold[ageGroup (age) ] += value;
-}
-void Survey::addToSumX (double age, double value)
-{
-  _sumX[ageGroup (age) ] += value;
-}
-void Survey::setAnnualAverageKappa (double kappa)
-{
-  _annualAverageKappa = kappa;
-}
-void Survey::setNumTransmittingHosts (double value)
-{
-  _numTransmittingHosts = value;
-}
-
 
 void Survey::allocate ()
 {
-  size_t numAgeGroups = _upperbound.size();
+  size_t numAgeGroups = SurveyAgeGroup::getNumGroups();
   _numHosts.resize (numAgeGroups);
   _numInfectedHosts.resize (numAgeGroups);
   _numExpectedInfected.resize (numAgeGroups);
   _numPatentHosts.resize (numAgeGroups);
-  _sumX.resize (numAgeGroups);
+  _sumLogPyrogenicThreshold.resize (numAgeGroups);
   _sumLogDensity.resize (numAgeGroups);
-  _totalInfections.resize (numAgeGroups);
-  _totalPatentInfections.resize (numAgeGroups);
-  _contributionImmunity.resize (numAgeGroups);
-  _pyrogenicThreshold.resize (numAgeGroups);
+  _sumInfections.resize (numAgeGroups);
+  _sumPatentInfections.resize (numAgeGroups);
+  _sumPyrogenicThreshold.resize (numAgeGroups);
   _numTreatments1.resize (numAgeGroups);
   _numTreatments2.resize (numAgeGroups);
   _numTreatments3.resize (numAgeGroups);
@@ -160,26 +129,23 @@ void Survey::writeSummaryArrays (ostream& outputFile, int survey)
   if (active[nPatent]) {
     writeArray (outputFile, nPatent, _assimilatorMode, survey, _numPatentHosts);
   }
-  if (active[sumX]) {
-    writeArray (outputFile, sumX, _assimilatorMode, survey, _sumX);
+  if (active[sumLogPyrogenThres]) {
+    writeArray (outputFile, sumLogPyrogenThres, _assimilatorMode, survey, _sumLogPyrogenicThreshold);
   }
   if (active[sumlogDens]) {
     writeArray (outputFile, sumlogDens, _assimilatorMode, survey, _sumLogDensity);
   }
   if (active[totalInfs]) {
-    writeArray (outputFile, totalInfs, _assimilatorMode, survey, _totalInfections);
+    writeArray (outputFile, totalInfs, _assimilatorMode, survey, _sumInfections);
   }
   if (active[nTransmit]) {
     writeArray (outputFile, nTransmit, _assimilatorMode, survey, _numTransmittingHosts);
   }
   if (active[totalPatentInf]) {
-    writeArray (outputFile, totalPatentInf, _assimilatorMode, survey, _totalPatentInfections);
+    writeArray (outputFile, totalPatentInf, _assimilatorMode, survey, _sumPatentInfections);
   }
-  if (active[contrib]) {
-    writeArray (outputFile, contrib, _assimilatorMode, survey, _contributionImmunity);
-  }
-  if (active[pyrogenThrs]) {
-    writeArray (outputFile, pyrogenThrs, _assimilatorMode, survey, _pyrogenicThreshold);
+  if (active[sumPyrogenThresh]) {
+    writeArray (outputFile, sumPyrogenThresh, _assimilatorMode, survey, _sumPyrogenicThreshold);
   }
   if (active[nTreatments1]) {
     writeArray (outputFile, nTreatments1, _assimilatorMode, survey, _numTreatments1);

@@ -146,7 +146,7 @@ void DescriptiveIPTWithinHost::clearInfections (bool isSevere) {
   clearAllInfections();
 }
 
-void DescriptiveIPTWithinHost::IPTSetLastSPDose (int agetstep, int ageGroup) {
+void DescriptiveIPTWithinHost::IPTSetLastSPDose (int agetstep, SurveyAgeGroup ageGroup) {
   if (Simulation::timeStep < 0) return;
   // assumes 5-day intervals and Niakhar seasonality
   // These numbers, should have MAX = MIN + 18 (modulo 73).
@@ -184,7 +184,7 @@ void DescriptiveIPTWithinHost::IPTSetLastSPDose (int agetstep, int ageGroup) {
   }
 }
 
-void DescriptiveIPTWithinHost::IPTiTreatment (int ageGroup) {
+void DescriptiveIPTWithinHost::IPTiTreatment (SurveyAgeGroup ageGroup) {
   //Set the last SP Dose given for the eligible humans - is this all we need to do?
   
   _lastIptiOrPlacebo = Simulation::simulationTime;

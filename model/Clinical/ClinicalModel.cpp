@@ -83,14 +83,14 @@ ClinicalModel::~ClinicalModel () {
 }
 
 ClinicalModel::ClinicalModel (istream& in) :
-    pathogenesisModel(PathogenesisModel::createPathogenesisModel(in))
+    pathogenesisModel(PathogenesisModel::createPathogenesisModel(in)),
+    latestReport(in)
 {
-  in >> latestReport;
   in >> _doomed; 
 }
 void ClinicalModel::write (ostream& out) {
   pathogenesisModel->write (out);
-  out << latestReport << endl;
+  latestReport.write(out);
   out << _doomed << endl;
 }
 
@@ -111,14 +111,14 @@ void ClinicalModel::update (WithinHostModel& withinHostModel, double ageYears, i
   
   //indirect death: if this human's about to die, don't worry about further episodes:
   if (_doomed <= -35) {	//clinical episode 6 intervals before
-    Surveys.current->reportIndirectDeaths (Survey::ageGroup(ageYears), 1);
+    Surveys.current->reportIndirectDeaths (SurveyAgeGroup(ageYears), 1);
     _doomed = DOOMED_INDIRECT;
     return;
   }
   if(ageTimeSteps == 1) {
     // Chance of neonatal mortality:
     if (NeonatalMortality::eventNeonatalMortality()) {
-      Surveys.current->reportIndirectDeaths (Survey::ageGroup(ageYears), 1);
+      Surveys.current->reportIndirectDeaths (SurveyAgeGroup(ageYears), 1);
       _doomed = DOOMED_NEONATAL;
       return;
     }
@@ -139,6 +139,6 @@ void ClinicalModel::updateInfantDeaths (int ageTimeSteps) {
   }
 }
 
-void ClinicalModel::summarize (Survey& survey, size_t ageGroup) {
+void ClinicalModel::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
   pathogenesisModel->summarize (survey, ageGroup);
 }

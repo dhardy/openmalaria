@@ -55,7 +55,7 @@ private:
 public:
   virtual void update();
   
-  virtual void summarize(Survey& survey, size_t ageGroup);
+  virtual void summarize(Survey& survey, SurveyAgeGroup ageGroup);
   
   //! Create a new infection requires that the human is allocated and current
   virtual void newInfection();

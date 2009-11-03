@@ -134,14 +134,14 @@ void DummyWithinHostModel::calculateDensities(double ageInYears, double BSVEffic
 
 // -----  Summarize  -----
 
-void DummyWithinHostModel::summarize (Survey& survey, size_t ageGroup) {
+void DummyWithinHostModel::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
   if (_MOI > 0) {
     survey.reportInfectedHosts (ageGroup, 1);
-    survey.addToTotalInfections(ageGroup, _MOI);
-    survey.addToTotalPatentInfections(ageGroup, patentInfections);
+    survey.addToInfections(ageGroup, _MOI);
+    survey.addToPatentInfections(ageGroup, patentInfections);
   }
   if (parasiteDensityDetectible()) {
     survey.reportPatentHosts (ageGroup, 1);
-    survey.addToSumLogDensity(ageGroup, log(totalDensity));
+    survey.addToLogDensity(ageGroup, log(totalDensity));
   }
 }

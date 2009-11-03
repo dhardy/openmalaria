@@ -57,7 +57,7 @@ public:
    *
    * Only PyrogenPathogenesis implements this; other models don't have anything
    * to add to the summary. */
-  virtual void summarize (Survey& survey, size_t ageGroup) {}
+  virtual void summarize (Survey& survey, SurveyAgeGroup ageGroup) {}
   
   /// @brief Checkpointing functions
   //@{

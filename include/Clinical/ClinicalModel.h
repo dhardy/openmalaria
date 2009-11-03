@@ -100,7 +100,7 @@ public:
   }
   
   /// Summarize PathogenesisModel details
-  void summarize (Survey& survey, size_t ageGroup);
+  void summarize (Survey& survey, SurveyAgeGroup ageGroup);
   
   //TODO: make private
   static vector<int> infantDeaths;

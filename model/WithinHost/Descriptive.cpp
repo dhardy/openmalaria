@@ -188,15 +188,15 @@ void DescriptiveWithinHostModel::IPTattenuateAsexualMinTotalDensity () {}
 // -----  Summarize  -----
 
 // TODO: can summarize move to WithinHostModel ?
-void DescriptiveWithinHostModel::summarize (Survey& survey, size_t ageGroup) {
+void DescriptiveWithinHostModel::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
   if (_MOI > 0) {
     survey.reportInfectedHosts (ageGroup, 1);
-    survey.addToTotalInfections(ageGroup, _MOI);
+    survey.addToInfections(ageGroup, _MOI);
     // TODO: patentInfections doesn't really need to be calculated each timestep and stored! calculate it here instead.
-    survey.addToTotalPatentInfections(ageGroup, patentInfections);
+    survey.addToPatentInfections(ageGroup, patentInfections);
   }
   if (parasiteDensityDetectible()) {
     survey.reportPatentHosts (ageGroup, 1);
-    survey.addToSumLogDensity(ageGroup, log(totalDensity));
+    survey.addToLogDensity(ageGroup, log(totalDensity));
   }
 }

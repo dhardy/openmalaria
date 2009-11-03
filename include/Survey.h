@@ -34,9 +34,9 @@ enum Measure {
   nExpectd= 2,
   /// number of patent hosts
   nPatent= 3,
-  /// sum of log of pyrogen threshold
-  sumX= 4,
-  /// sum of the logarithm of the density
+  /// Sum of the log of the pyrogen threshold
+  sumLogPyrogenThres = 4,
+  /// Sum of the logarithm of the parasite density
   sumlogDens= 5,
   /// Total infections
   totalInfs= 6,
@@ -49,8 +49,8 @@ enum Measure {
   totalPatentInf= 8,
   /// Contribution to immunity functions
   contrib= 9,
-  /// Sum of pyrogenic threshold
-  pyrogenThrs= 10,
+  /// Sum of the pyrogenic threshold
+  sumPyrogenThresh = 10,
   /// number of treatments (1st line)
   nTreatments1= 11,
   /// number of treatments (2nd line)
@@ -101,24 +101,37 @@ enum Measure {
   NUM_SUMMARY_OPTIONS	// must be hightest value above plus one
 };
 
-/// Data struct for a single survey.
-class Survey {
-  ///@brief Static members (options from XML)
-  //@{
+/** Included for type-saftey: don't allow implicit double->int conversions.
+ *
+ * Incindentally, the constructor can be used implicitly for implicit
+ * conversion doing the right thing.
+ * 
+ * Don't use _this_ class for other index/age-group types. */
+class SurveyAgeGroup {
   public:
-    /** Returns the age group/interval for a given age
-     *
-     * @param age Given age
-     * @return age interval for a given age */
-    static int ageGroup(double age);
+    /** Find the age group for the given age ageYears. */
+    SurveyAgeGroup (double ageYears);
+    /** Used for checkpointing. */
+    void read (istream& in) {
+      in >> _i;
+    }
+    
+    /** Get the represented index. */
+    inline size_t i () {
+      return _i;
+    }
     
     /// Get the total number of age categories (inc. one for indivs. not in any
     /// category given in XML).
-    static int getNumOfAgeGroups() {return _upperbound.size();};
+    static inline int getNumGroups () {
+      return _upperbound.size();
+    }
     
   private:
-    /// Initialize static parameters.
-    static void init();
+    size_t _i;
+    
+    /// Initialize _lowerbound and _upperbound
+    static void init ();
     
     static double _lowerbound; //!< Lower boundary of the youngest agegroup
     /** Upper boundary of agegroups, in years.
@@ -126,6 +139,17 @@ class Survey {
      * These are age-groups given in XML plus one with no upper limit for
      * individuals outside other bounds. */
     static vector<double> _upperbound; 
+    
+    friend class Survey;
+};
+
+/// Data struct for a single survey.
+class Survey {
+  ///@brief Static members (options from XML)
+  //@{
+  private:
+    /// Initialize static parameters.
+    static void init();
     
     /// Encoding of which summary options are active in XML is converted into
     /// this array for easier reading (and to make changing encoding within XML easier).
@@ -141,125 +165,116 @@ public:
   /// @brief reportXXX functions to report val more of measure XXX within age-group ageGroup. Returns this allowing chain calling.
   //Note: generate this list from variable definitions by regexp search-replacing using the following:
   //Search: vector<(\w+)> _num(\w+)\;
-  //Replace: Survey& report\2 (size_t ageGroup, \1 val) {\n    _num\2[ageGroup] += val;\n    return *this;\n  }
+  //Replace: Survey& report\2 (SurveyAgeGroup ageGroup, \1 val) {\n    _num\2[ageGroup.i()] += val;\n    return *this;\n  }
+  //Search: vector<(\w+)> _sum(\w+)\;
+  //Replace: Survey& addTo\2 (SurveyAgeGroup ageGroup, \1 val) {\n    _sum\2[ageGroup.i()] += val;\n    return *this;\n  }
   //@{
-  Survey& reportHosts (size_t ageGroup, int val) {
-    _numHosts[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportInfectedHosts (size_t ageGroup, int val) {
-    _numInfectedHosts[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportExpectedInfected (size_t ageGroup, double val) {
-    _numExpectedInfected[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportPatentHosts (size_t ageGroup, int val) {
-    _numPatentHosts[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportTreatments1 (size_t ageGroup, int val) {
-    _numTreatments1[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportTreatments2 (size_t ageGroup, int val) {
-    _numTreatments2[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportTreatments3 (size_t ageGroup, int val) {
-    _numTreatments3[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportUncomplicatedEpisodes (size_t ageGroup, int val) {
-    _numUncomplicatedEpisodes[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportSevereEpisodes (size_t ageGroup, int val) {
-    _numSevereEpisodes[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportSequelae (size_t ageGroup, int val) {
-    _numSequelae[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportHospitalDeaths (size_t ageGroup, int val) {
-    _numHospitalDeaths[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportIndirectDeaths (size_t ageGroup, int val) {
-    _numIndirectDeaths[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportDirectDeaths (size_t ageGroup, int val) {
-    _numDirectDeaths[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportEPIVaccinations (size_t ageGroup, int val) {
-    _numEPIVaccinations[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportMassVaccinations (size_t ageGroup, int val) {
-    _numMassVaccinations[ageGroup] += val;
-    return *this;
-  } 
-  Survey& reportHospitalRecoveries (size_t ageGroup, int val) {
-    _numHospitalRecoveries[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportHospitalSequelae (size_t ageGroup, int val) {
-    _numHospitalSequelae[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportIPTDoses (size_t ageGroup, int val) {
-    _numIPTDoses[ageGroup] += val;
-    return *this;
-  }
-  Survey& reportNonMalariaFevers (size_t ageGroup, int val) {
-    _numNonMalariaFevers[ageGroup] += val;
-    return *this;
-  } 
+    Survey& reportHosts (SurveyAgeGroup ageGroup, int val) {
+      _numHosts[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportInfectedHosts (SurveyAgeGroup ageGroup, int val) {
+      _numInfectedHosts[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportExpectedInfected (SurveyAgeGroup ageGroup, double val) {
+      _numExpectedInfected[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportPatentHosts (SurveyAgeGroup ageGroup, int val) {
+      _numPatentHosts[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& addToLogPyrogenicThreshold (SurveyAgeGroup ageGroup, double val) {
+      _sumLogPyrogenicThreshold[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& addToLogDensity (SurveyAgeGroup ageGroup, double val) {
+      _sumLogDensity[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& addToInfections (SurveyAgeGroup ageGroup, int val) {
+      _sumInfections[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& addToPatentInfections (SurveyAgeGroup ageGroup, int val) {
+      _sumPatentInfections[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& addToPyrogenicThreshold (SurveyAgeGroup ageGroup, double val) {
+      _sumPyrogenicThreshold[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportTreatments1 (SurveyAgeGroup ageGroup, int val) {
+      _numTreatments1[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportTreatments2 (SurveyAgeGroup ageGroup, int val) {
+      _numTreatments2[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportTreatments3 (SurveyAgeGroup ageGroup, int val) {
+      _numTreatments3[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportUncomplicatedEpisodes (SurveyAgeGroup ageGroup, int val) {
+      _numUncomplicatedEpisodes[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportSevereEpisodes (SurveyAgeGroup ageGroup, int val) {
+      _numSevereEpisodes[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportSequelae (SurveyAgeGroup ageGroup, int val) {
+      _numSequelae[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportHospitalDeaths (SurveyAgeGroup ageGroup, int val) {
+      _numHospitalDeaths[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportIndirectDeaths (SurveyAgeGroup ageGroup, int val) {
+      _numIndirectDeaths[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportDirectDeaths (SurveyAgeGroup ageGroup, int val) {
+      _numDirectDeaths[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportEPIVaccinations (SurveyAgeGroup ageGroup, int val) {
+      _numEPIVaccinations[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportMassVaccinations (SurveyAgeGroup ageGroup, int val) {
+      _numMassVaccinations[ageGroup.i()] += val;
+      return *this;
+    } 
+    Survey& reportHospitalRecoveries (SurveyAgeGroup ageGroup, int val) {
+      _numHospitalRecoveries[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportHospitalSequelae (SurveyAgeGroup ageGroup, int val) {
+      _numHospitalSequelae[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportIPTDoses (SurveyAgeGroup ageGroup, int val) {
+      _numIPTDoses[ageGroup.i()] += val;
+      return *this;
+    }
+    Survey& reportNonMalariaFevers (SurveyAgeGroup ageGroup, int val) {
+      _numNonMalariaFevers[ageGroup.i()] += val;
+      return *this;
+    } 
   //@}
   /// Report a first or second line, or inpatient treatment
-  void reportTreatment(int ageGroup, int regimen);
-
-  /** Update(add) the number of total infections
-   *
-   * @param age Given age
-   * @param value Value to add
-   */
-  void addToTotalInfections(double age, int value);
+  void reportTreatment(SurveyAgeGroup ageGroup, int regimen);
   
-  /** Update(add) the number of total patent infections
-   *
-   * @param age Given age
-   * @param value Value to add
-   */
-  void addToTotalPatentInfections(double age, int value);
-  
-  /** Update(add) the table for the sum of the logarithm of the density
-   *
-   * @param age Given age
-   * @param value Value to add
-   */
-  void addToSumLogDensity(double age, double value);
-  
-  /** Update(add) the table for the pyrogenic threshold
-   *
-   * @param age Given age
-   * @param value Value to add
-   */
-  void addToPyrogenicThreshold(double age, double value);
-  
-  /** Update(add) the table for the sum of log of pyrogen threshold
-   *
-   * @param age Given age
-   * @param value Value to add
-   */
-  void addToSumX(double age, double value);
-  
-  void setAnnualAverageKappa(double kappa);
-  void setNumTransmittingHosts(double value);
+  void setAnnualAverageKappa(double kappa) {
+    _annualAverageKappa = kappa;
+  }
+  void setNumTransmittingHosts(double value) {
+    _numTransmittingHosts = value;
+  }
   
   void setInnoculationsPerDayOfYear (vector<double>& v) {
     _innoculationsPerDayOfYear = v;
@@ -284,13 +299,12 @@ private:
   vector<int> _numInfectedHosts;
   vector<double> _numExpectedInfected;
   vector<int> _numPatentHosts;
-  vector<double> _sumX;
+  vector<double> _sumLogPyrogenicThreshold;
   vector<double> _sumLogDensity;
-  vector<int> _totalInfections;
+  vector<int> _sumInfections;
   double _numTransmittingHosts;
-  vector<int> _totalPatentInfections;
-  vector<double> _contributionImmunity;
-  vector<double> _pyrogenicThreshold;
+  vector<int> _sumPatentInfections;
+  vector<double> _sumPyrogenicThreshold;
   vector<int> _numTreatments1;
   vector<int> _numTreatments2;
   vector<int> _numTreatments3;

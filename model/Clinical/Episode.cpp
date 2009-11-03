@@ -25,7 +25,31 @@
 int Episode::reportingPeriodMemory;
 
 
-void Episode::update (int simulationTime, int ageGroup, Pathogenesis::State newState)
+Episode::Episode (istream& in) : _ageGroup(0) {
+  in >> _time;
+  if (_time != TIMESTEP_NEVER) {
+    in >> _surveyPeriod;
+    _ageGroup.read (in);
+    int temp;
+    in >> temp;
+    _state = Pathogenesis::State (temp);
+  }
+}
+Episode::~Episode ()
+{
+  report ();
+}
+void Episode::write (ostream& out) {
+  out << _time << endl;
+  if (_time != TIMESTEP_NEVER) {
+    out << _surveyPeriod << endl;
+    out << _ageGroup.i() << endl;
+    out << _state << endl;
+  }
+}
+
+
+void Episode::update (int simulationTime, SurveyAgeGroup ageGroup, Pathogenesis::State newState)
 {
   if (simulationTime > (_time + reportingPeriodMemory)) {
     report ();
@@ -38,12 +62,6 @@ void Episode::update (int simulationTime, int ageGroup, Pathogenesis::State newS
     _state = Pathogenesis::State (_state | newState);
   }
 }
-
-Episode::~Episode ()
-{
-  report ();
-}
-
 
 void Episode::report () {
   if (_time == TIMESTEP_NEVER)	// Nothing to report
@@ -84,27 +102,4 @@ void Episode::report () {
 	.reportSequelae (_ageGroup, 1);
     // Don't care about out-of-hospital recoveries
   }
-}
-
-
-ostream& operator<< (ostream& out, const Episode& event)
-{
-  out << event._time << endl;
-  if (event._time == TIMESTEP_NEVER) return out;
-  out << event._surveyPeriod << endl;
-  out << event._ageGroup << endl;
-  out << event._state << endl;
-  return out;
-}
-
-istream& operator>> (istream& in, Episode& event)
-{
-  in >> event._time;
-  if (event._time == TIMESTEP_NEVER) return in;
-  in >> event._surveyPeriod;
-  in >> event._ageGroup;
-  int temp;
-  in >> temp;
-  event._state = Pathogenesis::State (temp);
-  return in;
 }

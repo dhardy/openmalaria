@@ -54,9 +54,9 @@ double PyrogenPathogenesis::getPEpisode(double timeStepMaxDensity, double totalD
   return 1-1/(1+(timeStepMaxDensity/_pyrogenThres));;
 }
 
-void PyrogenPathogenesis::summarize (Survey& survey, size_t ageGroup) {
+void PyrogenPathogenesis::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
   survey.addToPyrogenicThreshold(ageGroup, _pyrogenThres);
-  survey.addToSumX(ageGroup, log(_pyrogenThres+1.0));
+  survey.addToLogPyrogenicThreshold(ageGroup, log(_pyrogenThres+1.0));
 }
 
 void PyrogenPathogenesis::updatePyrogenThres(double totalDensity){

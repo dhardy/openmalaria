@@ -148,10 +148,11 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
     if ((newState & pgState) & Pathogenesis::MALARIA)
       newState = Pathogenesis::State (newState | Pathogenesis::SECOND_CASE);
     pgState = Pathogenesis::State (pgState | newState);
-    latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
+    SurveyAgeGroup ageGroup = ageYears;
+    latestReport.update(Simulation::simulationTime, ageGroup, pgState);
     pgChangeTimestep = Simulation::simulationTime;
     
-    doCaseManagement (withinHostModel, ageYears);
+    doCaseManagement (withinHostModel, ageYears, ageGroup);
   }
   
   
@@ -170,7 +171,7 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
 	pgState = Pathogenesis::State (pgState | Pathogenesis::SEQUELAE);
       else
 	pgState = Pathogenesis::State (pgState | Pathogenesis::RECOVERY);
-      latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
+      latestReport.update(Simulation::simulationTime, SurveyAgeGroup(ageYears), pgState);
       pgState = Pathogenesis::NONE;
     } else {
       //TODO: insert correct probabilities
@@ -188,11 +189,11 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
 	  pgState = Pathogenesis::State (pgState | Pathogenesis::SEQUELAE);
 	else
 	  pgState = Pathogenesis::State (pgState | Pathogenesis::RECOVERY);
-	latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
+	latestReport.update(Simulation::simulationTime, SurveyAgeGroup(ageYears), pgState);
 	pgState = Pathogenesis::NONE;
       } else if (rand < pRecover+pDeath) {
 	pgState = Pathogenesis::State (pgState | Pathogenesis::DIRECT_DEATH);
-	latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
+	latestReport.update(Simulation::simulationTime, SurveyAgeGroup(ageYears), pgState);
 	_doomed = DOOMED_COMPLICATED;	// kill human (removed from simulation next timestep)
       }
       // else stay in this state
@@ -206,7 +207,7 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
     // a catch-22 situation, so DH, MP and VC decided to leave it like this.
     //TODO: also report EVENT_IN_HOSPITAL where relevant (patient _can_ be in a severe state)
     pgState = Pathogenesis::State (pgState | Pathogenesis::RECOVERY);
-    latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
+    latestReport.update(Simulation::simulationTime, SurveyAgeGroup(ageYears), pgState);
     pgState = Pathogenesis::NONE;
   }
   
@@ -224,7 +225,7 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
   }
 }
 
-void ClinicalEventScheduler::doCaseManagement (WithinHostModel& withinHostModel, double ageYears) {
+void ClinicalEventScheduler::doCaseManagement (WithinHostModel& withinHostModel, double ageYears, SurveyAgeGroup ageGroup) {
 #ifndef NDEBUG
   if (!(pgState & Pathogenesis::SICK))
     throw domain_error("doCaseManagement shouldn't be called if not sick");
@@ -249,13 +250,13 @@ void ClinicalEventScheduler::doCaseManagement (WithinHostModel& withinHostModel,
   if (pgState & Pathogenesis::MALARIA) {	// NOTE: report treatment shouldn't be done like this so it's handled correctly when treatment is cancelled
     if (pgState & Pathogenesis::COMPLICATED) {
       endPoints = &caseManagementEndPoints[ageIndex].caseSev;
-      Surveys.current->reportTreatments1(Survey::ageGroup(ageYears), 1);
+      Surveys.current->reportTreatments1(ageGroup, 1);
     } else if (pgState & Pathogenesis::SECOND_CASE) {
       endPoints = &caseManagementEndPoints[ageIndex].caseUC2;
-      Surveys.current->reportTreatments2(Survey::ageGroup(ageYears), 1);
+      Surveys.current->reportTreatments2(ageGroup, 1);
     } else {
       endPoints = &caseManagementEndPoints[ageIndex].caseUC1;
-      Surveys.current->reportTreatments3(Survey::ageGroup(ageYears), 1);
+      Surveys.current->reportTreatments3(ageGroup, 1);
     }
   } else /*if (pgState & Pathogenesis::SICK) [true by above check]*/ {	// sick but not from malaria
     if (withinHostModel.parasiteDensityDetectible())
