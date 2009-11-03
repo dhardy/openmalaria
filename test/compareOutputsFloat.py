@@ -78,12 +78,38 @@ class ValIdentifier:
         self.ageGroup = g
         self.measure = m
     def __eq__(self,other):
-        return (self.survey != other.survey) or (self.ageGroup != other.ageGroup) or (self.measure != other.measure)
+        return (self.survey == other.survey) and (self.ageGroup == other.ageGroup) and (self.measure == other.measure)
     def __hash__(self):
         return self.survey.__hash__() ^ self.ageGroup.__hash__() ^ self.measure.__hash__()
 
+class TestValIdentifier (unittest.TestCase):
+    def setUp(self):
+        self.a1 = ValIdentifier(2,4,0);
+        self.a2 = ValIdentifier(2,4,0);
+        self.a3 = ValIdentifier(2,2,0);
+        self.b1 = ValIdentifier(0,16,5);
+        self.b2 = ValIdentifier(0,16,5);
+    def testEq (self):
+        self.assert_ (self.a1.survey == self.a2.survey)
+        self.assert_ (self.a1 == self.a2)
+        self.assert_ (self.b1 == self.b2)
+        self.assert_ (self.a1 != self.a3)
+    def testHash (self):
+        self.assert_ (self.a1.__hash__ == self.a2.__hash__)
+        self.assert_ (self.b1.__hash__ == self.b2.__hash__)
+
+
+def ReadEntries (fname):
+    values=dict()
+    fileObj = open(fname, 'r')
+    for line in fileObj:
+        items=string.split(line)
+        key=ValIdentifier(int(items[0]),int(items[1]),int(items[2]))
+        values[key]=float(items[3])
+    return values
 
 def main(*args):
+    ret=0
     maxDiffsToPrint=6
     if (len(args) == 4):
         maxDiffsToPrint=int(args[3])
@@ -93,78 +119,70 @@ def main(*args):
         print "Usage: "+args[0]+" logfile1 logfile2 [max different lines to print]"
         return 1
     
-    print args[0]+" "+args[1]+" "+args[2]+" "+str(maxDiffsToPrint)
+    fn1 = args[1]
+    fn2 = args[2]
+    print args[0]+" "+fn1+" "+fn2+" "+str(maxDiffsToPrint)
     
+    # Read both files and combine into a map of key to pairs (v1, v2)
+    try:
+        values1=ReadEntries(fn1)
+        values2=ReadEntries(fn2)
+    except IOError as e:
+        print str(e)
+        return 1
     values=dict()
-    values2=dict()
-    file1=open(args[1], 'r')
-    for line1 in file1:
-        line_items1=string.split(line1)
-        key=ValIdentifier(int(line_items1[0]),int(line_items1[1]),int(line_items1[2]))
-        values[key]=float(line_items1[3])
+    for (k,v1) in values1.iteritems():
+        v2=None
+        if (k in values2):
+            v2=values2[k]
+            del values2[k]
+        values[k] = (v1,v2)
+    for (k,v2) in values2.iteritems():
+        values[k] = (None,v2)
     
-    file2=open(args[2], 'r')
+    # Go through all values:
+    numPrinted=0
     numDiffs=0
+    numMissing1=0
+    numMissing2=0
     perMeasureNumDiff = dict()
     perMeasureDiffSum = dict()
     perMeasureDiffAbsSum = dict()
-    for line2 in file2:
-        line_items2=string.split(line2)
-        survey=int(line_items2[0])
-        ageGroup=int(line_items2[1])
-        measure=int(line_items2[2])
-        key2=ValIdentifier(survey,ageGroup,measure)
-        value2=float(line_items2[3])
-        
-        if not key2 in values:
-            values2[key2]=value2
-            continue
-        value1=values[key2]
-        # Remove the value, so we can check all entries in values are in second file:
-        del values[key2]
-        
+    for (k,(v1,v2)) in values.iteritems():
+        if v1==None:
+            numMissing1 += 1
+        elif v2==None:
+            numMissing2 += 1
         # Compare with relative precision
-        if not approx_equal_6 (value1, value2):
+        elif not approx_equal_6 (v1, v2):
             numDiffs += 1
-            perMeasureNumDiff[measure] = perMeasureNumDiff.get(measure,0) + 1;
-            if (numDiffs <= maxDiffsToPrint):
-                print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{4:>12.5f} ->{5:>12.5f}".format(0,survey,ageGroup,measure,value1,value2)
-                if (numDiffs == maxDiffsToPrint):
-                    print "[won't print any more line-by-line diffs]"
+        else:
+            continue
+        
+        numPrinted += 1
+        perMeasureNumDiff[k.measure] = perMeasureNumDiff.get(k.measure,0) + 1;
+        if (numPrinted <= maxDiffsToPrint):
+            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{4:>12.5f} ->{5:>12.5f}".format(0,k.survey,k.ageGroup,k.measure,v1,v2)
+            if (numPrinted == maxDiffsToPrint):
+                print "[won't print any more line-by-line diffs]"
         
         # Sum up total difference per measure
-        perMeasureDiffSum[measure]    = perMeasureDiffSum.get(measure,0.0)    + value2 - value1
-        perMeasureDiffAbsSum[measure] = perMeasureDiffAbsSum.get(measure,0.0) + math.fabs(value2-value1)
+        perMeasureDiffSum[k.measure]    = perMeasureDiffSum.get(k.measure,0.0)    + v2 - v1
+        perMeasureDiffAbsSum[k.measure] = perMeasureDiffAbsSum.get(k.measure,0.0) + math.fabs(v2-v1)
     
-    if len(values):
-        print "{2} entries in {0} but not {1} (unordered excerpt):".format(args[1],args[2],len(values))
-        count = 0
-        for (key,val) in values.iteritems():
-            if count >= maxDiffsToPrint:
-                break
-            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{0:>12.5f}".format(val,key.survey,key.ageGroup,key.measure)
-            count += 1
-    if len(values2):
-        print "{2} entries in {0} but not {1} (unordered excerpt):".format(args[2],args[1],len(values2))
-        count = 0
-        for (key,val) in values2.iteritems():
-            if count >= maxDiffsToPrint:
-                break
-            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{0:>12.5f}".format(val,key.survey,key.ageGroup,key.measure)
-            count += 1
+    if (numMissing1 > 0) or (numMissing2 > 0):
+        print "{0} entries missing from first file, {1} from second".format(numMissing1,numMissing2)
+        ret = 3
     
-    if len(values) or len(values2):
-        return 3
-    
-    for (measure,val) in perMeasureDiffAbsSum.iteritems():
+    for (k.measure,val) in perMeasureDiffAbsSum.iteritems():
         if val > 1e-6:
-            diff=perMeasureDiffSum[measure]
-            print "Diff sum for measure {0: >3}:{1: >12.5f}\tabs: {2: >12.5f}\t(ratio: {3: >9.5f}; from {4:>3} diffs)".format(measure,diff,val,diff/val,perMeasureNumDiff.get(measure,0))
+            diff=perMeasureDiffSum[k.measure]
+            print "Diff sum for measure {0: >3}:{1: >12.5f}\tabs: {2: >12.5f}\t(ratio: {3: >9.5f}; from {4:>3} diffs)".format(k.measure,diff,val,diff/val,perMeasureNumDiff.get(k.measure,0))
     
     # We print total relative diff here: 1.0 should mean roughly, one parameter is twice what it should be.
     if numDiffs == 0:
         print "No significant differences (total relative diff: {0}), ok...".format(totalRelDiff/1.e6)
-        return 0
+        return ret
     else:
         print "{0} significant differences (total relative diff: {1})!".format(numDiffs,totalRelDiff/1.e6)
         return 1
