@@ -99,6 +99,19 @@ class TestValIdentifier (unittest.TestCase):
         self.assert_ (self.b1.__hash__ == self.b2.__hash__)
 
 
+def charEqual (fn1,fn2):
+    MAX=10*1024
+    f1 = open(fn1,'r')
+    f2 = open(fn2,'r')
+    while True:
+        s1 = f1.read(MAX)
+        s2 = f2.read(MAX)
+        if (len(s1)==0) or (len(s2)==0):
+            # end of one or both files; equal if it's the end of both
+            return len(s1) == len(s2)
+        if s1 != s2:
+            return False
+
 def ReadEntries (fname):
     values=dict()
     fileObj = open(fname, 'r')
@@ -125,6 +138,11 @@ def main(*args):
     
     # Read both files and combine into a map of key to pairs (v1, v2)
     try:
+        if charEqual (fn1,fn2):
+            print "Files are identical"
+            return 0
+        print "Files aren't binary-equal"
+        
         values1=ReadEntries(fn1)
         values2=ReadEntries(fn2)
     except IOError as e:
@@ -156,19 +174,18 @@ def main(*args):
         # Compare with relative precision
         elif not approx_equal_6 (v1, v2):
             numDiffs += 1
+            # Sum up total difference per measure
+            perMeasureDiffSum[k.measure]    = perMeasureDiffSum.get(k.measure,0.0)    + v2 - v1
+            perMeasureDiffAbsSum[k.measure] = perMeasureDiffAbsSum.get(k.measure,0.0) + math.fabs(v2-v1)
         else:
             continue
         
         numPrinted += 1
         perMeasureNumDiff[k.measure] = perMeasureNumDiff.get(k.measure,0) + 1;
         if (numPrinted <= maxDiffsToPrint):
-            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{4:>12.5f} ->{5:>12.5f}".format(0,k.survey,k.ageGroup,k.measure,v1,v2)
+            print "survey {1:>3}, age group {2:>3}, measure {3:>3}:{4:>12.5} ->{5:>12.5}".format(0,k.survey,k.ageGroup,k.measure,v1,v2)
             if (numPrinted == maxDiffsToPrint):
                 print "[won't print any more line-by-line diffs]"
-        
-        # Sum up total difference per measure
-        perMeasureDiffSum[k.measure]    = perMeasureDiffSum.get(k.measure,0.0)    + v2 - v1
-        perMeasureDiffAbsSum[k.measure] = perMeasureDiffAbsSum.get(k.measure,0.0) + math.fabs(v2-v1)
     
     if (numMissing1 > 0) or (numMissing2 > 0):
         print "{0} entries missing from first file, {1} from second".format(numMissing1,numMissing2)
