@@ -26,9 +26,6 @@
 #include "Clinical/DecisionEnums.d"
 #include "Surveys.h"
 
-//TODO: move to XML
-const int maxEpisodeLength = 28;
-
 vector<double> ClinicalEventScheduler::caseManagementMaxAge;
 vector<ClinicalEventScheduler::CaseManagementEndPoints> ClinicalEventScheduler::caseManagementEndPoints;
 
@@ -43,7 +40,7 @@ void ClinicalEventScheduler::init () {
   if (getCaseManagements() == NULL)
     throw xml_scenario_error ("ClinicalEventScheduler selected without caseManagements data in XML");
   
-  reportingPeriodMemory = getCaseManagements()->getReportingPeriodMemory();
+  Episode::reportingPeriodMemory = getCaseManagements()->getReportingPeriodMemory();
   
   const scnXml::CaseManagements::CaseManagementSequence& managements = getCaseManagements()->getCaseManagement();
   caseManagementMaxAge.resize (managements.size());
@@ -99,13 +96,9 @@ ClinicalEventScheduler::CaseTypeEndPoints ClinicalEventScheduler::readEndPoints 
 
 ClinicalEventScheduler::ClinicalEventScheduler (double cF, double tSF) :
     ClinicalModel (cF),
-    pgState(Pathogenesis::NONE), reportState(Pathogenesis::NONE),
-    episodeStartTimestep(TIMESTEP_NEVER)
+    pgState(Pathogenesis::NONE), pgChangeTimestep(TIMESTEP_NEVER)
 {}
-ClinicalEventScheduler::~ClinicalEventScheduler() {
-  // If something still to report, do so now
-  report ();
-}
+ClinicalEventScheduler::~ClinicalEventScheduler() {}
 
 ClinicalEventScheduler::ClinicalEventScheduler (istream& in) :
     ClinicalModel (in)
@@ -113,12 +106,7 @@ ClinicalEventScheduler::ClinicalEventScheduler (istream& in) :
   int x;
   in >> x;
   pgState = (Pathogenesis::State) x;
-  in >> x;
-  reportState = (Pathogenesis::State) x;
   in >> pgChangeTimestep;
-  in >> episodeStartTimestep;
-  in >> _surveyPeriod;
-  in >> _ageGroup;
   in >> x;
   for (; x > 0; --x) {
     MedicateData md;
@@ -131,15 +119,9 @@ ClinicalEventScheduler::ClinicalEventScheduler (istream& in) :
   in >> lastCmDecision;
 }
 void ClinicalEventScheduler::write (ostream& out) {
-  pathogenesisModel->write (out);
-  out << latestReport;
-  out << _doomed << endl; 
+  ClinicalModel::write(out);
   out << pgState << endl;
-  out << reportState << endl;
   out << pgChangeTimestep << endl;
-  out << episodeStartTimestep << endl;
-  out << _surveyPeriod << endl;
-  out << _ageGroup << endl;
   out << medicateQueue.size() << endl;
   for (list<MedicateData>::iterator i = medicateQueue.begin(); i != medicateQueue.end(); ++i) {
     out << i->abbrev << endl;
@@ -163,21 +145,10 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
   if ((((newState | pgState) ^ pgState) & (Pathogenesis::SICK | Pathogenesis::MALARIA | Pathogenesis::COMPLICATED)) ||
       (pgState & newState & Pathogenesis::MALARIA && Simulation::simulationTime >= pgChangeTimestep + 3))
   {
-    // When an event occurs, if it's at least 28 days later than the first case,
-    // we report the old episode and count the new case a new episode.
-    if (Simulation::simulationTime > episodeStartTimestep + maxEpisodeLength) {
-      report ();
-      
-      episodeStartTimestep = Simulation::simulationTime;
-      reportState = Pathogenesis::NONE;
-      _surveyPeriod=Surveys.getSurveyPeriod();
-      _ageGroup=Survey::ageGroup(ageYears);
-    }
-    
     if ((newState & pgState) & Pathogenesis::MALARIA)
       newState = Pathogenesis::State (newState | Pathogenesis::SECOND_CASE);
     pgState = Pathogenesis::State (pgState | newState);
-    reportState = Pathogenesis::State (reportState | pgState);
+    latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
     pgChangeTimestep = Simulation::simulationTime;
     
     doCaseManagement (withinHostModel, ageYears);
@@ -190,10 +161,16 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
   //TODO: Also call immunityPenalisation() like previous model?
   
   if (pgState & Pathogenesis::COMPLICATED) {
+    //TODO: Also set Pathogenesis::EVENT_IN_HOSPITAL where relevant:
+    //reportState = Pathogenesis::State (reportState | Pathogenesis::EVENT_IN_HOSPITAL);
+    
     if (Simulation::simulationTime >= pgChangeTimestep + 10) {
       // force recovery after 10 days
       if (gsl::rngUniform() < 0.02)
-	reportState = Pathogenesis::State (reportState | Pathogenesis::SEQUELAE);
+	pgState = Pathogenesis::State (pgState | Pathogenesis::SEQUELAE);
+      else
+	pgState = Pathogenesis::State (pgState | Pathogenesis::RECOVERY);
+      latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
       pgState = Pathogenesis::NONE;
     } else {
       //TODO: insert correct probabilities
@@ -208,22 +185,28 @@ void ClinicalEventScheduler::doClinicalUpdate (WithinHostModel& withinHostModel,
       double rand = gsl::rngUniform();
       if (rand < pRecover) {
 	if (rand < pSequelae*pRecover && Simulation::simulationTime >= pgChangeTimestep + 5)
-	  reportState = Pathogenesis::State (reportState | Pathogenesis::SEQUELAE);
+	  pgState = Pathogenesis::State (pgState | Pathogenesis::SEQUELAE);
+	else
+	  pgState = Pathogenesis::State (pgState | Pathogenesis::RECOVERY);
+	latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
 	pgState = Pathogenesis::NONE;
       } else if (rand < pRecover+pDeath) {
-	reportState = Pathogenesis::State (reportState | Pathogenesis::DIRECT_DEATH);
+	pgState = Pathogenesis::State (pgState | Pathogenesis::DIRECT_DEATH);
+	latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
 	_doomed = DOOMED_COMPLICATED;	// kill human (removed from simulation next timestep)
       }
       // else stay in this state
     }
-  } else if (pgState & Pathogenesis::SICK && Simulation::simulationTime >= episodeStartTimestep + maxEpisodeLength) {
-    // End of what's counted as episode. We only do reporting on death or the
-    // next event.
+  } else if (pgState & Pathogenesis::SICK && latestReport.episodeEnd(Simulation::simulationTime)) {
+    // Episode timeout: force recovery. 
     // NOTE: An uncomplicated case occuring before this reset could be counted
     // UC2 but with treatment only occuring after this reset (when the case
     // should be counted UC) due to a treatment-seeking-delay. This can't be
     // corrected because the delay depends on the UC/UC2/etc. state leading to
     // a catch-22 situation, so DH, MP and VC decided to leave it like this.
+    //TODO: also report EVENT_IN_HOSPITAL where relevant (patient _can_ be in a severe state)
+    pgState = Pathogenesis::State (pgState | Pathogenesis::RECOVERY);
+    latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), pgState);
     pgState = Pathogenesis::NONE;
   }
   
@@ -292,34 +275,4 @@ void ClinicalEventScheduler::doCaseManagement (WithinHostModel& withinHostModel,
     medicateQueue.back().seekingDelay = endPoints->decisions[decisionIndex] % 10;	// last digit
     lastCmDecision = endPoints->decisions[decisionIndex];
   }
-}
-
-void ClinicalEventScheduler::report () {
-  if (reportState == Pathogenesis::NONE)	// Nothing to report
-    return;
-  
-  Survey& survey = Surveys.at(_surveyPeriod);
-  
-  //NOTE: this happens slightly differently to old reporting; we still report
-  // sickness when the patient has indirect death.
-  if (reportState & Pathogenesis::MALARIA) {
-    if (reportState & Pathogenesis::COMPLICATED)
-      survey.reportSevereEpisodes (_ageGroup, 1);
-    else // UC or UC2
-      survey.reportUncomplicatedEpisodes (_ageGroup, 1);
-  } else if (reportState & Pathogenesis::SICK) {
-    survey.reportNonMalariaFevers (_ageGroup, 1);
-  }	// also possibility of nothing, but not reported in this case
-  
-  if (reportState & Pathogenesis::DIRECT_DEATH)
-    survey.reportDirectDeaths (_ageGroup, 1);
-  else if (reportState & Pathogenesis::INDIRECT_MORTALITY)
-    survey.reportIndirectDeaths (_ageGroup, 1);
-  else if (reportState & Pathogenesis::SEQUELAE)
-    survey.reportSequelae (_ageGroup, 1);
-  
-  //TODO: we don't know whether patient was in hospital or not
-  //survey.reportHospitalRecoveries (_ageGroup, 1);
-  //survey.reportHospitalSequelae (_ageGroup, 1);
-  //survey.reportHospitalDeaths (_ageGroup, 1);
 }

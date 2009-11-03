@@ -24,7 +24,7 @@
 // -----  static init  -----
 
 void ClinicalImmediateOutcomes::initParameters () {
-  reportingPeriodMemory = OldCaseManagement::init();
+  Episode::reportingPeriodMemory = OldCaseManagement::init();
 }
 
 
@@ -43,9 +43,7 @@ ClinicalImmediateOutcomes::ClinicalImmediateOutcomes (istream& in) :
     caseManagement(new OldCaseManagement (in))
 {}
 void ClinicalImmediateOutcomes::write (ostream& out) {
-  pathogenesisModel->write (out);
-  out << latestReport;
-  out << _doomed << endl; 
+  ClinicalModel::write (out);
   caseManagement->write (out);
 }
 

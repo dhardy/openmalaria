@@ -25,8 +25,8 @@
 #include "NeonatalMortality.h"
 #include "Simulation.h"
 #include "inputData.h"
+#include <Surveys.h>
 
-int ClinicalModel::reportingPeriodMemory;
 vector<int> ClinicalModel::infantIntervalsAtRisk;
 vector<int> ClinicalModel::infantDeaths;
 double ClinicalModel::_nonMalariaMortality;
@@ -88,6 +88,11 @@ ClinicalModel::ClinicalModel (istream& in) :
   in >> latestReport;
   in >> _doomed; 
 }
+void ClinicalModel::write (ostream& out) {
+  pathogenesisModel->write (out);
+  out << latestReport << endl;
+  out << _doomed << endl;
+}
 
 
 // -----  other non-static methods  -----
@@ -106,14 +111,14 @@ void ClinicalModel::update (WithinHostModel& withinHostModel, double ageYears, i
   
   //indirect death: if this human's about to die, don't worry about further episodes:
   if (_doomed <= -35) {	//clinical episode 6 intervals before
-    latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), Diagnosis::INDIRECT_MALARIA_DEATH, Outcome::INDIRECT_DEATH);
+    Surveys.current->reportIndirectDeaths (Survey::ageGroup(ageYears), 1);
     _doomed = DOOMED_INDIRECT;
     return;
   }
   if(ageTimeSteps == 1) {
     // Chance of neonatal mortality:
     if (NeonatalMortality::eventNeonatalMortality()) {
-      latestReport.update(Simulation::simulationTime, Survey::ageGroup(ageYears), Diagnosis::INDIRECT_MALARIA_DEATH, Outcome::INDIRECT_DEATH);
+      Surveys.current->reportIndirectDeaths (Survey::ageGroup(ageYears), 1);
       _doomed = DOOMED_NEONATAL;
       return;
     }

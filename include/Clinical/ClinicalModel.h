@@ -22,7 +22,7 @@
 #define Hmod_ClinicalModel
 
 #include "Pathogenesis/PathogenesisModel.h"
-#include "event.h"
+#include "Episode.h"
 
 /** The clinical model models the effects of sickness dependant on malarial
  * parasite densities and administers anti-malaria treatments via the drug
@@ -65,7 +65,7 @@ public:
   /// Destructor
   virtual ~ClinicalModel ();
   /// Write a checkpoint
-  virtual void write (ostream& out) =0;
+  virtual void write (ostream& out);
   
   /** Kills the human if ageTimeSteps reaches the simulation age limit.
    *
@@ -88,7 +88,7 @@ public:
   /** Was the last diagnosis severe malaria?
    * FIXME: update or remove */
   inline bool latestDiagnosisIsSevereMalaria () {
-    return latestReport.getDiagnosis() == Diagnosis::SEVERE_MALARIA;
+    return latestReport.getState() == Pathogenesis::STATE_SEVERE;
   }
   
   /** Used with IPT within host model to potentially skip summarizing.
@@ -101,15 +101,6 @@ public:
   
   /// Summarize PathogenesisModel details
   void summarize (Survey& survey, size_t ageGroup);
-  
-  /** The maximum age, in timesteps, of when a sickness event occurred, for
-   * another event to be considered part of the same reported "event".
-   * 
-   * Used by both the clinical models in roughly the same way, but will have
-   * different values in each to match Global::interval.
-   * 
-   * NOTE: notation: episode/event */
-  static int reportingPeriodMemory;
   
   //TODO: make private
   static vector<int> infantDeaths;
@@ -135,7 +126,7 @@ protected:
   
   /** Next event to report.
    * Only reported when the Human dies or a separate episode occurs. */
-  Event latestReport;	//FIXME: We have two "report" data pieces when using EventScheduler
+  Episode latestReport;
   
   /** @brief Positive values of _doomed variable (codes). */
   enum {

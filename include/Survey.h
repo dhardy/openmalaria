@@ -21,7 +21,6 @@
 #define Hmod_Survey
 
 #include "Global.h"
-#include "Clinical/event.h"
 
 /** Enumeration of reporting options
  *
