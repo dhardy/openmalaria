@@ -62,10 +62,15 @@ class SurveysType
     int getSurveyPeriod() {
       return _surveyPeriod;
     };
+    
+    /// Return timestep of the final survey
+    inline int getFinalTimestep () {
+      return _surveysTimeIntervals[_survey.size()-2];	// final entry is an added: -1
+    }
     //@}
 
   private:
-    //! Time intervals for all surveys specified in the XML
+    //! Time intervals for all surveys specified in the XML, appended with -1
     vector<int> _surveysTimeIntervals;
     /** Index for the time dimention of the summary arrays
      * Index starts from 1 for used surveys; is 0 to write to dummy survey. */

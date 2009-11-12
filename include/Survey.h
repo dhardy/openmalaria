@@ -48,6 +48,7 @@ enum Measure {
   /// Total patent infections
   totalPatentInf= 8,
   /// Contribution to immunity functions
+  ///NOTE: not used
   contrib= 9,
   /// Sum of the pyrogenic threshold
   sumPyrogenThresh = 10,

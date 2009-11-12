@@ -30,17 +30,18 @@ void SurveysType::init ()
 {
   _surveyPeriod = 0;
 
-  int numberOfSurveys = get_number_of_surveys() + 1;
-  _surveysTimeIntervals.resize (numberOfSurveys);
+  const scnXml::Surveys::SurveyTimeSequence& survs = getMonitoring().getSurveys().getSurveyTime();
 
-  for (int i = 1;i < numberOfSurveys; i++) {
-    _surveysTimeIntervals[i] = get_time_of_survey (i);
+  _surveysTimeIntervals.resize (survs.size() + 1);
+  for (int i = 0; i < survs.size(); i++) {
+    _surveysTimeIntervals[i] = survs[i];
   }
+  _surveysTimeIntervals[survs.size()] = -1;
   currentTimestep = _surveysTimeIntervals[0];
 
   Survey::init ();
 
-  _survey.resize (numberOfSurveys);
+  _survey.resize (survs.size() + 1);
   for (size_t i = 0; i < _survey.size(); ++i)
     _survey[i].allocate();
   current = &_survey[0];
@@ -48,15 +49,13 @@ void SurveysType::init ()
 
 void SurveysType::incrementSurveyPeriod()
 {
+  currentTimestep = _surveysTimeIntervals[_surveyPeriod];
   _surveyPeriod++;
-  if (_surveyPeriod < (int) _survey.size()) {
-    current = &_survey[_surveyPeriod];
-    currentTimestep = _surveysTimeIntervals[_surveyPeriod];
-  } else {
+  if (_surveyPeriod >= (int) _survey.size())
+    // In this case, currentTimestep gets set to -1 so no further surveys get taken
     _surveyPeriod = 0;
-    current = &_survey[0];
-    currentTimestep = -1;
-  }
+  current = &_survey[_surveyPeriod];
+  cout << "New survey period: " << _surveyPeriod << "; timestep: " << currentTimestep << endl;
 }
 
 void SurveysType::writeSummaryArrays ()
@@ -74,7 +73,7 @@ void SurveysType::writeSummaryArrays ()
   //   outputFile.precision (6);
   //   outputFile << scientific;
 
-  for (size_t i = 1; i < _survey.size(); ++i)
+  for (size_t i = 0; i < _survey.size(); ++i) //FIXME: should start from 1
     _survey[i].writeSummaryArrays (outputFile, i);
 
   //Infant mortality rate is a single number, therefore treated separately
