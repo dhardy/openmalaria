@@ -29,6 +29,9 @@
 using namespace std;
 
 /*! Old Within Host Model class.
+ *
+ * Note: this implementation has a few bugs with (hopefully) small effect, not
+ * fixed in order to preserve results (search MAX_DENS_BUG, also in Constant.h).
  */
 class DescriptiveWithinHostModel : public WithinHostModel {
 public:
@@ -53,10 +56,6 @@ private:
   //@}
   
 public:
-  virtual void update();
-  
-  virtual void summarize(Survey& survey, SurveyAgeGroup ageGroup);
-  
   //! Create a new infection requires that the human is allocated and current
   virtual void newInfection();
   
@@ -65,19 +64,17 @@ public:
   
   void calculateDensities(double ageInYears, double BSVEfficacy);
   
-  bool parasiteDensityDetectible() const {
-    return totalDensity > detectionLimit;
-  }
-  
 protected:
+  virtual int countInfections (int& patentInfections);
+  
+  ///@brief IPT extensions − empty otherwise
+  //@{
   /*!  SP drug action applies to each infection depending on genotype and when
   the individual had their last dose of SP */
-  virtual void SPAction();
-  
-  virtual void IPTattenuateAsexualDensity (DescriptiveInfection& infec);
-  virtual void IPTattenuateAsexualMinTotalDensity ();
-  
-  static const int MAX_INFECTIONS;
+  virtual void SPAction() {}
+  virtual void IPTattenuateAsexualMinTotalDensity () {}
+  virtual void IPTattenuateAsexualDensity (DescriptiveInfection* inf) {}
+  //@}
   
   //!multiplicity of infection
   int _MOI;
@@ -91,9 +88,6 @@ protected:
 private:
   //!innate ability to control parasite densities
   double _innateImmunity;
-  
-  //!Number of infections with densities above the limit of detection
-  int patentInfections;
 };
 
 #endif

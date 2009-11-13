@@ -23,6 +23,7 @@
 
 #include "Global.h"
 #include "Clinical/ClinicalModel.h"
+#include "Clinical/DecisionEnums.d"
 #include <map>
 #include <list>
 
@@ -98,6 +99,10 @@ private:
      * NOTE: Decisions from all age groups are being combined. */
     map<size_t,CaseTreatment> decisions;
   };
+  
+  const static size_t PTABLE_NUM_DAYS = 3;
+  static double pDeathTable[TREATMENT_NUM_TYPES * PTABLE_NUM_DAYS];
+  static double pRecoverTable[TREATMENT_NUM_TYPES * PTABLE_NUM_DAYS];
   
   /** Age groups */
   static vector<double> caseManagementMaxAge;

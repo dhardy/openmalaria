@@ -25,6 +25,7 @@
 #include "WithinHost/DescriptiveIPT.h"
 #include "WithinHost/Dummy.h"
 #include "WithinHost/Empirical.h"
+#include "Simulation.h"
 #include "inputData.h"
 #include <stdexcept>
 
@@ -44,6 +45,7 @@ double WithinHostModel::detectionLimit;
 // -----  Initialization  -----
 
 void WithinHostModel::init() {
+  Infection::init();
   sigma_i=sqrt(getParameter(Params::SIGMA_I_SQ));
   immPenalty_22=1-exp(getParameter(Params::IMMUNITY_PENALTY));
   immEffectorRemain=exp(-getParameter(Params::IMMUNE_EFFECTOR_DECAY));
@@ -140,9 +142,6 @@ size_t WithinHostModel::getAgeGroup (double age) {
 
 // -----  immunity  -----
 
-double WithinHostModel::immunitySurvivalFactor () {
-}
-
 void WithinHostModel::updateImmuneStatus(){
   if (immEffectorRemain < 1){
     _cumulativeh*=immEffectorRemain;
@@ -161,5 +160,24 @@ void WithinHostModel::immunityPenalisation() {
   _cumulativeY=(double)_cumulativeYlag-(immPenalty_22*(_cumulativeY-_cumulativeYlag));
   if (_cumulativeY <  0) {
     _cumulativeY=0.0;
+  }
+}
+
+
+// -----  Summarize  -----
+
+void WithinHostModel::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
+  int patentInfections;
+  int numInfections = countInfections (patentInfections);
+  if (numInfections) {
+    survey.reportInfectedHosts(ageGroup,1);
+    survey.addToInfections(ageGroup, numInfections);
+    survey.addToPatentInfections(ageGroup, patentInfections);
+  }
+  // Treatments in the old ImmediateOutcomes clinical model clear infections immediately
+  // (and are applied after calculateDensities()); here we report the last calculated density.
+  if (parasiteDensityDetectible()) {
+    survey.reportPatentHosts(ageGroup, 1);
+    survey.addToLogDensity(ageGroup, log(totalDensity));
   }
 }

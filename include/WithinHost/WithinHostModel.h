@@ -63,7 +63,7 @@ public:
   virtual void write(ostream& out) const;
   //@}
   
-  virtual void summarize(Survey& survey, SurveyAgeGroup ageGroup) =0;
+  void summarize(Survey& survey, SurveyAgeGroup ageGroup);
   
   //! Create a new infection requires that the human is allocated and current
   virtual void newInfection() =0;
@@ -85,6 +85,17 @@ public:
    * @param BSVEfficacy Efficacy of blood-stage vaccine */
   virtual void calculateDensities(double ageInYears, double BSVEfficacy) =0;
   
+  bool parasiteDensityDetectible() const {
+    return totalDensity > detectionLimit;
+  }
+  
+  inline double getTotalDensity() const {return totalDensity;}
+  inline double getTimeStepMaxDensity() const {return timeStepMaxDensity;}
+  
+  /// Get the appropriate index within agemax, ageSpecificRelativeAvailability
+  /// and wtprop for this age (in years). Also used by PerHostTransmission.
+  static size_t getAgeGroup (double age);
+  
   ///@brief Only do anything when IPT is present:
   //@{
   /// Conditionally set last SP dose
@@ -105,14 +116,11 @@ protected:
    * Applies decay of immunity against asexual blood stages, if present. */
   void updateImmuneStatus();
   
-  /** @returns A multiplier describing the proportion of parasites surviving
-   * immunity effects this timestep.
-   * 
-   * Note that in the Descriptive model this multiplies log(density), but the
-   * new density has no effect on future densities, wheras the Empirical model
-   * multiplies the actual density (which then affects density on the following
-   * timestep). */
-  double immunitySurvivalFactor ();
+  /** For summarizing:
+   * @returns Total number of infections.
+   * @param patentInfections Out param: the number of patent infections
+	    (only set if return-value is non-zero). */
+  virtual int countInfections (int& patentInfections) =0;
   
   //!Cumulative parasite density since birth
   double _cumulativeY;
@@ -122,17 +130,6 @@ protected:
   double _cumulativeYlag;
   //@}
   
-public:
-  virtual bool parasiteDensityDetectible() const =0;
-  
-  inline double getTotalDensity() const {return totalDensity;}
-  inline double getTimeStepMaxDensity() const {return timeStepMaxDensity;}
-  
-  /// Get the appropriate index within agemax, ageSpecificRelativeAvailability
-  /// and wtprop for this age (in years). Also used by PerHostTransmission.
-  static size_t getAgeGroup (double age);
-  
-protected:
   /** Literally just removes all infections in an individual.
    *
    * Normally clearInfections() would be called instead, which, when IPT is not
@@ -145,8 +142,7 @@ protected:
   /** Maximum parasite density during the previous 5-day interval. */
   double timeStepMaxDensity;
   
-  /* Static private */
-  
+  //BEGIN Static Vars
 //Standard dev innate immunity for densities
   static double sigma_i;
 // contribution of parasite densities to acquired immunity in the presence of fever
@@ -170,6 +166,11 @@ protected:
   */
   static double detectionLimit;
   
+  /** The maximum number of infections a human can have. The only real reason
+   * for this limit is to prevent incase bad input from causing the number of
+   * infections to baloon stupidly. */
+  static const int MAX_INFECTIONS = 21;
+  
   ///@brief Age-group variables for wtprop and ageSpecificRelativeAvailability
   //@{
 public:
@@ -186,6 +187,7 @@ protected:
   in the reference age group. */
   static const double wtprop[nages];
   //@}
+  //END Static vars
 };
 
 #endif

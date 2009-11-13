@@ -43,8 +43,6 @@ public:
   ~DummyWithinHostModel();
   
   
-  virtual void summarize(Survey& survey, SurveyAgeGroup ageGroup);
-  
   //! Create a new infection requires that the human is allocated and current
   virtual void newInfection();
   
@@ -57,10 +55,9 @@ public:
   
   void write(ostream& out) const;
   
-  bool parasiteDensityDetectible() const {
-    return totalDensity > detectionLimit;
-  }
-  
+  protected:
+    virtual int countInfections (int& patentInfections);
+    
 private:
   /// Encapsulates drug code for each human
   DrugModel* drugProxy;
@@ -83,8 +80,6 @@ private:
    * Since infection models and within host models are very much intertwined,
    * the idea is that each WithinHostModel has its own list of infections. */
   std::list<DummyInfection> infections;
-  
-  static const int MAX_INFECTIONS;
 };
 
 #endif

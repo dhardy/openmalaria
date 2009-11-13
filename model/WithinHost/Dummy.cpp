@@ -27,8 +27,6 @@
 
 using namespace std;
 
-const int DummyWithinHostModel::MAX_INFECTIONS = 21;
-
 // -----  Initialization  -----
 
 DummyWithinHostModel::DummyWithinHostModel() :
@@ -132,16 +130,16 @@ void DummyWithinHostModel::calculateDensities(double ageInYears, double BSVEffic
   drugProxy->decayDrugs();
 }
 
+
 // -----  Summarize  -----
 
-void DummyWithinHostModel::summarize (Survey& survey, SurveyAgeGroup ageGroup) {
-  if (_MOI > 0) {
-    survey.reportInfectedHosts (ageGroup, 1);
-    survey.addToInfections(ageGroup, _MOI);
-    survey.addToPatentInfections(ageGroup, patentInfections);
+int DummyWithinHostModel::countInfections (int& patentInfections) {
+  if (infections.empty()) return 0;
+  patentInfections = 0;
+  for (std::list<DummyInfection>::iterator iter=infections.begin();
+       iter != infections.end(); ++iter){
+    if (iter->getDensity() > detectionLimit)
+      patentInfections++;
   }
-  if (parasiteDensityDetectible()) {
-    survey.reportPatentHosts (ageGroup, 1);
-    survey.addToLogDensity(ageGroup, log(totalDensity));
-  }
+  return infections.size();
 }
