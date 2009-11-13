@@ -73,7 +73,7 @@ void SurveysType::writeSummaryArrays ()
   //   outputFile.precision (6);
   //   outputFile << scientific;
 
-  for (size_t i = 0; i < _survey.size(); ++i) //FIXME: should start from 1
+  for (size_t i = 1; i < _survey.size(); ++i)
     _survey[i].writeSummaryArrays (outputFile, i);
 
   //Infant mortality rate is a single number, therefore treated separately
