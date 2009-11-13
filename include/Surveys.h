@@ -63,9 +63,14 @@ class SurveysType
       return _surveyPeriod;
     };
     
-    /// Return timestep of the final survey
+    /** Return timestep of the final survey.
+     *
+     * We use this to control when the simulation ends.
+     * This isn't quite the same as before when the simulation end was
+     * explicitly specified and has a small affect on
+     * infantAllCauseMortality (survey 21) output. */
     inline int getFinalTimestep () {
-      return _surveysTimeIntervals[_survey.size()-2];	// final entry is an added: -1
+      return _surveysTimeIntervals[_survey.size()-2];	// final entry is a concatenated -1
     }
     //@}
 
