@@ -121,33 +121,26 @@ def ReadEntries (fname):
         values[key]=float(items[3])
     return values
 
-def main(*args):
+def main(fn1,fn2,maxDiffsToPrint=6):
+    """Takes names of the two files to compare and optionally an argument describing
+the maximum number of differences to print directly (note: order is not intuitive).
+Returns a tuple ret,ident; ret is 0 if test passes (output considered near-enough equal),
+ident is 1 if files are binary-equal."""
     ret=0
-    maxDiffsToPrint=6
-    if (len(args) == 4):
-        maxDiffsToPrint=int(args[3])
-    elif (len(args) == 3):
-        pass
-    else:
-        print "Usage: "+args[0]+" logfile1 logfile2 [max different lines to print]"
-        return 1
-    
-    fn1 = args[1]
-    fn2 = args[2]
-    print args[0]+" "+fn1+" "+fn2+" "+str(maxDiffsToPrint)
+    print "compareOutputsFloat.py "+fn1+" "+fn2+" "+str(maxDiffsToPrint)
     
     # Read both files and combine into a map of key to pairs (v1, v2)
     try:
         if charEqual (fn1,fn2):
             print "Files are identical"
-            return 0
+            return 0,True
         print "Files aren't binary-equal"
         
         values1=ReadEntries(fn1)
         values2=ReadEntries(fn2)
     except IOError as e:
         print str(e)
-        return 1
+        return 1,False
     values=dict()
     for (k,v1) in values1.iteritems():
         v2=None
@@ -199,12 +192,19 @@ def main(*args):
     # We print total relative diff here: 1.0 should mean roughly, one parameter is twice what it should be.
     if numDiffs == 0:
         print "No significant differences (total relative diff: {0}), ok...".format(totalRelDiff/1.e6)
-        return ret
+        return ret,False
     else:
         print "{0} significant differences (total relative diff: {1})!".format(numDiffs,totalRelDiff/1.e6)
-        return 1
+        return 1,False
 
 if __name__ == '__main__':
     #uncomment to run unittests:
     #unittest.main()
-    sys.exit(main(*sys.argv))
+    if (len(sys.argv) == 4):
+        ret,ident = main (sys.argv[1],sys.argv[2],int(sys.argv[3]))
+    elif (len(sys.argv) == 3):
+        ret,ident = main (sys.argv[1],sys.argv[2])
+    else:
+        print "Usage: "+sys.argv[0]+" logfile1 logfile2 [max different lines to print]"
+        ret=-1
+    sys.exit(ret)

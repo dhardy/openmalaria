@@ -399,7 +399,6 @@ int Population::targetCumPop (int ageTSteps, int targetPop) {
 // -----  non-static methods: summarising and interventions  -----
 
 void Population::newSurvey () {
-  cout << "Survey: "<<Surveys.getSurveyPeriod()<<endl;
   Survey& current = *Surveys.current;
   for(HumanIter iter=population.begin(); iter != population.end(); iter++){
     iter->summarize(current);
