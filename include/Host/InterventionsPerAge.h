@@ -18,15 +18,28 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 */
 
-#ifndef Hmod_ContinuousInterventions
-#define Hmod_ContinuousInterventions
+#ifndef Hmod_InterventionsPerAge
+#define Hmod_InterventionsPerAge
 
 #include "Global.h"
 #include <limits>
 #include <map>
 
+/** Part of a continuous intervention scheduler. The per-timestep part is in
+ * Human to avoid having to pass a reference here.
+ *
+ * Groups all continuously deployed interventions together, deploying each when the
+ * host reaches the target age. */
 class InterventionsPerAge {
     public:
+	/** Set up intervs. */
+	static void initParameters ();
+	
+	/// Get the intervs dataset.
+	static inline vector<InterventionsPerAge>& Intervs () {
+	    return intervs;
+	}
+	
 	InterventionsPerAge (int timeStep) :
 	    ageTimeSteps(timeStep),
 	    covVaccine(numeric_limits<double>::quiet_NaN()),
@@ -52,29 +65,11 @@ class InterventionsPerAge {
 	InterventionsPerAge () {}	// ctor only for use by map; an assignment takes place after creation
 	friend InterventionsPerAge& std::map<int,InterventionsPerAge>::operator[](const int&);
 	
+	static vector<InterventionsPerAge> intervs;
+	
 	int ageTimeSteps;
 	double covVaccine;
 	double covITN;
 	double covIPTI;
-};
-
-/** A continuous intervention scheduler.
- *
- * Groups all continuously deployed interventions together, deploying each when the
- * host reaches the target age. */
-class ContinuousInterventions {
-    public:
-	ContinuousInterventions () :
-	    next(0)
-	{}
-	
-	void deploy (int ageTS);
-	
-	static void initParameters ();
-	
-    private:
-	size_t next;	// index
-	
-	static vector<InterventionsPerAge> intervs;
 };
 #endif

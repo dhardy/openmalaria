@@ -23,7 +23,7 @@
 
 #include "Host/intervention.h"
 #include "Host/InfectionIncidenceModel.h"
-#include "Host/ContinuousInterventions.h"
+#include "Host/InterventionsPerAge.h"
 #include "Clinical/ClinicalModel.h"
 #include "WithinHost/DescriptiveIPT.h"	// only for summarizing
 
@@ -74,6 +74,7 @@ Human::Human(TransmissionModel& tm, int ID, int dateOfBirth, int simulationTime)
     infIncidence(InfectionIncidenceModel::createModel()),
     withinHostModel(WithinHostModel::createWithinHostModel()),
     _dateOfBirth(dateOfBirth), /*_ID(ID),*/
+    _nextCtsInterv(0),
     _lastVaccineDose(0),
     _BSVEfficacy(0.0), _PEVEfficacy(0.0), _TBVEfficacy(0.0),
     _probTransmissionToMosquito(0.0)
@@ -249,7 +250,6 @@ void Human::updateInterventionStatus() {
       TODO: The tstep conditional is appropriate if we assume there is no intervention during warmup
       It won't work if we introduce interventions into a scenario with a pre-existing intervention.
     */
-    //_ctsIntervs.deploy(ageTimeSteps);
     if (Simulation::timeStep >= 0) {
       if (_lastVaccineDose < (int)Vaccine::_numberOfEpiDoses){
 	  if (Vaccine::targetAgeTStep[_lastVaccineDose] == ageTimeSteps &&
@@ -261,6 +261,14 @@ void Human::updateInterventionStatus() {
     }
   }
   withinHostModel->IPTSetLastSPDose(ageTimeSteps, ageGroup());
+  
+  
+  if (_nextCtsInterv < InterventionsPerAge::Intervs().size() && InterventionsPerAge::Intervs()[_nextCtsInterv].getAgeTimeSteps() == ageTimeSteps) {
+      if (gsl::rngUniform() InterventionsPerAge::Intervs()[_nextCtsInterv].ITN_coverage ()) {
+	  perHostTransmission.setupITN();
+      }
+      ++_nextCtsInterv;
+  }
   perHostTransmission.continousItnDistribution (ageTimeSteps);
 }
 
