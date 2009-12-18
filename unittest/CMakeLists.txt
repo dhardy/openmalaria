@@ -67,6 +67,7 @@ set (OM_CXXTEST_HEADERS
   ExtraAsserts.h	# must appear after at least some of the above
   HoshenPkPdSuite.h
   CheckpointSuite.h
+    UtilUnitsSuite.h
 )
 
 if (OM_CXXTEST_INTERPRETER)
