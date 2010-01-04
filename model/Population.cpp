@@ -30,7 +30,7 @@
 
 #include "Host/Human.h"
 #include "Host/NeonatalMortality.h"
-#include "Clinical/ImmediateOutcomes.h"  // for changeHS intervention
+#include "Clinical/ImmediateOutcomes.h"
 #include "Pathogenesis/PathogenesisModel.h"
 #include "PkPd/PkPdModel.h"
 
@@ -294,12 +294,7 @@ void Population::implementIntervention (int time)
     if (interv->getChangeHS().present()) {
         if (util::ModelOptions::option (util::CLINICAL_EVENT_SCHEDULER))
             throw util::xml_scenario_error ("Only ClinicalImmediateOutcomes is compatible with change of health-system intervention.");
-        InputData.changeHealthSystem (&interv->getChangeHS().get());
-        Clinical::ClinicalImmediateOutcomes::initParameters(); // should re-read all parameters
-
-        //FIXME: surely we shouldn't do this at all? (DH)
-        //TODO: Do we also need to re-init the kappa array?
-        _transmissionModel->copyToInitialKappa();
+        Clinical::OldCaseManagement::setHealthSystem(time);
     }
 
     if (interv->getChangeEIR().present()) {
