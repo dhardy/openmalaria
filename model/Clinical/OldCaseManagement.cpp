@@ -50,7 +50,7 @@ double OldCaseManagement::probSequelaeUntreated[NUM_SEQUELAE_AGE_GROUPS];
 
 const scnXml::HealthSystem& getHealthSystem (int healthSystemSource) {
     if (healthSystemSource == -1) {
-	return InputData.getHealthSystem();
+	return InputData().getHealthSystem().get();
     } else {
 	const scnXml::Intervention* interv = InputData.getInterventionByTime (healthSystemSource);
 	if (interv == NULL || !interv->getChangeHS().present())
