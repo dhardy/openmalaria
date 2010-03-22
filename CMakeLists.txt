@@ -16,7 +16,7 @@ project (OpenMalaria CXX)
 # They abort if not found, and look in a few extra places (e.g. ${CMAKE_SOURCE_DIR}/lib).
 set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR})
 
-set (OM_LATEST_SCHEMA "scenario_14.xsd")
+set (OM_LATEST_SCHEMA "scenario_17.xsd")
 
 # -----  Compile options  -----
 
@@ -194,14 +194,14 @@ endif (MSVC)
 
 # -----  OM_BOXTEST - black-box & unit testing  -----
 
-option(OM_BOXTEST_ENABLE "Enable black-box testing of openMalaria (use 'make test' or Visual Studio build target)" ON)
-if (OM_BOXTEST_ENABLE)
-  enable_testing()
-  add_subdirectory (test)
-endif (OM_BOXTEST_ENABLE)
-
 option(OM_CXXTEST_ENABLE "Enable lower-level unittests using cxx (use 'make test' or Visual Studio build target)test" ON)
 if (OM_CXXTEST_ENABLE)
   enable_testing()
   add_subdirectory (unittest)
 endif (OM_CXXTEST_ENABLE)
+
+option(OM_BOXTEST_ENABLE "Enable black-box testing of openMalaria (use 'make test' or Visual Studio build target)" ON)
+if (OM_BOXTEST_ENABLE)
+  enable_testing()
+  add_subdirectory (test)
+endif (OM_BOXTEST_ENABLE)
