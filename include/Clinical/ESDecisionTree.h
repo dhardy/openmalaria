@@ -49,9 +49,13 @@ struct ESDecisionValue {
 	id |= that.id;
     }
     private:
+	typedef uint64_t id_type;
+	
 	// private constructor, only for use by internal operations
-	ESDecisionValue (uint64_t new_id) : id(new_id) {}
-	uint64_t id;
+	ESDecisionValue (id_type new_id) : id(new_id) {}
+	
+	id_type id;
+	
 	friend std::size_t hash_value(ESDecisionValue const& b);
 	friend class ESDecisionValueMap;
 };
@@ -63,16 +67,24 @@ struct ESDecisionValueMap {
 	next_bit(0)
     {}
     
-    /** Set up a new set of decision values, returing the mask covering them all. */
+    /** Set up a new set of decision values, or confirm they match an existing
+     * set (if decision was already entered, and values don't match those
+     * associated with the existing decision, a xml_scenario_error is thrown).
+     * 
+     * @returns The mask covering them all. */
     ESDecisionValue add_decision_values (const string& decision, const std::vector< string > values);
     
     /** Assign from decision and value. add_decision_values must have been
      * called first. */
-    ESDecisionValue get (const string& decision, const string& value);
+    ESDecisionValue get (const string& decision, const string& value) const;
     
     private:
-	map<string,uint64_t> id_map;
-	uint64_t next_bit;
+	typedef ESDecisionValue::id_type id_type;
+	
+	// Map of decision to ( map of value to id )
+	typedef map< string, map< string, id_type > > id_map_type;
+	id_map_type id_map;
+	id_type next_bit;
 };
 
 struct ESHostData {

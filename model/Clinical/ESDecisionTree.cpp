@@ -130,15 +130,19 @@ namespace OM { namespace Clinical {
     
     ESDecisionParasiteTest::ESDecisionParasiteTest (ESDecisionValueMap dvMap) {
 	decision = "result";
+	
+	string vs[] = { "none", "microscopy", "RDT" };
+	// Add values, which (1) lets us create test_none, etc., and (2) introduces a
+	// check when the "test" decision is added later.
+	dvMap.add_decision_values ("test", vector<string>(vs, vs+3));
+	test_none = dvMap.get("test","none");
+	test_microscopy = dvMap.get("test", "microscopy");
+	test_RDT = dvMap.get("test","RDT");
 	depends.resize (1, "test");	// Note: we check in add_decision_values() that this test has the outcomes we expect
 	
 	vector< string > valueList (2, "negative");
 	valueList[1] = "positive";
 	setValues (dvMap, valueList);
-	
-	test_none = dvMap.get("test","none");
-	test_microscopy = dvMap.get("test", "microscopy");
-	test_RDT = dvMap.get("test","RDT");
     }
     
     ESDecisionValue ESDecisionParasiteTest::determine (const ESDecisionValue input, ESHostData& hostData) const {
@@ -159,69 +163,63 @@ std::size_t hash_value(ESDecisionValue const& b) {
     return hasher(b.id);
 }
 ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision, const std::vector< string > values) {
-    if (decision == "test") {	// Simple way to check "test" decision has expected values
-	set<string> expected;
-	expected.insert ("none");
-	expected.insert ("microscopy");
-	expected.insert ("RDT");
+    pair<id_map_type::iterator,bool> dec_pair = id_map.insert (make_pair (decision, map< string, id_type >()));
+    map< string, id_type >& valMap = dec_pair.first->second;	// alias new map
+    if (dec_pair.second) {	// new entry; fill it
+	
+	// got length l = values.size() + 1 (default, "no outcome"); want minimal n such that: 2^n >= l
+	// that is, n >= log_2 (l)
+	// so n = ceil (log_2 (l))
+	uint32_t n_bits = std::ceil (log (values.size() + 1) / log(2.0));
+	if (n_bits+next_bit>=(sizeof(next_bit)*8))	// (only valid on 8-bit-per-byte architectures)
+	    throw runtime_error ("ESDecisionValue design: insufficient bits");
+	
+	// Now we've got enough bits to represent all outcomes, starting at next_bit
+	// Zero always means "missing value", so text starts at our first non-zero value:
+	id_type next=(1<<next_bit), step;
+	step=next;
 	BOOST_FOREACH ( const string& value, values ) {
-	    set<string>::iterator it = expected.find (value);
-	    if (it == expected.end())
-		throw xml_scenario_error ((boost::format("CaseManagement: \"test\" has unexpected outcome: %1%") % value).str());
-	    else
-		expected.erase (it);
+	    valMap[value] = next;
+	    next += step;
 	}
-	if (!expected.empty ()) {
+	assert (next <= (1<<(n_bits+next_bit)));
+	
+    } else {	// decision already exists; confirm values match
+	
+	set<string> new_values (values.begin(), values.end());
+	for (map< string, id_type >::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val) {
+	    set<string>::iterator it = new_values.find (cur_val->first);
+	    if (it == new_values.end())
+		throw xml_scenario_error ((boost::format("CaseManagement: %1% values don't match (expected): %2%") % decision % cur_val->first).str());
+	    else
+		new_values.erase (it);
+	}
+	if (!new_values.empty ()) {
 	    ostringstream msg;
-	    msg << "CaseManagement: expected \"test\" to have outcomes:";
-	    BOOST_FOREACH ( const string& v, expected )
+	    msg << "CaseManagement: "<<decision<<" values don't match (unexpected):";
+	    BOOST_FOREACH ( const string& v, new_values )
 		msg << ' ' << v;
 	    throw xml_scenario_error (msg.str());
 	}
+	
     }
-    
-    // got length l = values.size() + 1 (default, "no outcome"); want minimal n such that: 2^n >= l
-    // that is, n >= log_2 (l)
-    // so n = ceil (log_2 (l))
-    uint32_t n_bits = std::ceil (log (values.size() + 1) / log(2.0));
-    if (n_bits+next_bit>=(sizeof(next_bit)*8))	// (only valid on 8-bit-per-byte architectures)
-	throw runtime_error ("ESDecisionValue design: insufficient bits");
-    // Now we've got enough bits to represent all outcomes, starting at next_bit
-    // Zero always means "missing value", so text starts at our first non-zero value:
-    uint64_t next=(1<<next_bit), step;
-    step=next;
-    BOOST_FOREACH ( const string& value, values ) {
-	string name = (boost::format("%1%(%2%)") %decision %value).str();
-	bool success = id_map.insert (pair<string,uint64_t>(name, next)).second;
-	if (!success) {
-	    ostringstream msg;
-	    msg <<"ESDecisionValue: value \""<<name<<"\" doesn't have a unique name";
-	    throw runtime_error (msg.str());
-	}
-	next += step;
-    }
-    assert (next <= (1<<(n_bits+next_bit)));
     
     // Set mask so bits which are used by values are 1:
     ESDecisionValue mask;
-    for (size_t i = 0; i < n_bits; ++i) {
-	mask |= (1<<next_bit);
-	++next_bit;
-    }
-    assert ((next-step & ~mask.id) == 0);		// last used value should be completely masked
-    assert ((1<<next_bit & mask.id) == 0);		// this bit should be off the end of the mask
+    for (map< string, id_type >::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val)
+	mask |= cur_val->second;
     return mask;
 }
-ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& value) {
-    string name = (boost::format("%1%(%2%)") %decision %value).str();
-    map<string,uint64_t>::const_iterator it = id_map.find (name);
-    if (it == id_map.end()) {
-	throw runtime_error ("ESDecisionValue: name used before an entry was created for it");
-    } else {
-	ESDecisionValue ret;
-	ret.id = it->second;
-	return ret;
-    }
+ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& value) const {
+    id_map_type::const_iterator it = id_map.find (decision);
+    if (it == id_map.end())
+	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no decision %1%") %decision).str());
+    
+    map< string, id_type >::const_iterator it2 = it->second.find (value);
+    if (it2 == it->second.end())
+	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no value %1%(%2%)") %decision %value).str());
+    
+    return ESDecisionValue (it2->second);
 }
 
 // -----  CMNode derivatives  -----
