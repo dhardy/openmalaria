@@ -24,12 +24,9 @@
 
 #include <set>
 #include <boost/format.hpp>
-#include <boost/spirit/include/qi.hpp>
 
 namespace OM { namespace Clinical {
     using namespace OM::util;
-    namespace qi = boost::spirit::qi;
-    namespace ascii = boost::spirit::ascii;
     
     void ESDecisionTree::setValues (ESDecisionValueMap dvMap, const vector< string >& valueList) {
 	mask = dvMap.add_decision_values (decision, valueList);
@@ -37,56 +34,6 @@ namespace OM { namespace Clinical {
 	size_t i = 0;
 	BOOST_FOREACH ( const string& value, valueList ) {
 	    values[i] = dvMap.get (decision, value);
-	}
-    }
-    ESDecisionRandom::ESDecisionRandom (ESDecisionValueMap dvMap, const ::scnXml::Decision& xmlDc) {
-	decision = xmlDc.getName();
-	
-	// Set depends, values. Start by defining a rule matching a symbol:
-	qi::rule<string::iterator, string(), ascii::space_type> symbol = qi::lexeme[+(qi::alnum | '.' | '_')];
-	
-	string s = xmlDc.getDepends();
-	string::iterator first = s.begin(); // we need a copy of the iterator, not a temporary
-	// Parse s into depends; note that the "attribute type" of the
-	// expression must match the type of depends (a vector<string>):
-	qi::phrase_parse(first, s.end(),
-			    (symbol % ','),
-			    ascii::space,
-			    depends);
-	
-	vector<string> valueList;
-	s = xmlDc.getValues();
-	first = s.begin();
-	// Same as above, for valueList:
-	qi::phrase_parse(first, s.end(),
-			    (symbol % ','),
-			    ascii::space,
-			    valueList);
-	
-	setValues (dvMap, valueList);
-	
-	//TODO: parse tree
-	//BRANCH_SET := BRANCH+
-	//BRANCH := DECISION '(' VALUE ')' ( ':' OUTCOME | '{' TREE '}' )
-	//OUTCOME, DECISION, VALUE := SYMBOL
-	qi::rule<string::iterator, ascii::space_type> tree;
-	qi::rule<string::iterator, ascii::space_type> branch = symbol >> '(' > symbol > ')' > ( ':' > symbol | '{' > tree > '}' );
-	tree = +branch | symbol;
-	
-	const ::xml_schema::String *content_p = dynamic_cast< const ::xml_schema::String * > (&xmlDc);
-	if (content_p == NULL)
-	    throw runtime_error ("ESDecision: bad upcast?!");
-	s = *content_p;
-	cout << "Got content: "<<s<<endl;
-	first = s.begin();
-	// For now, we ignore output and just test it wil pass the tree
-	qi::phrase_parse(first, s.end(),
-			    tree,
-			    ascii::space);
-	if (first != s.end ()) {
-	    ostringstream msg;
-	    msg << "ESDecision: failed to parse tree; remainder: " << string(first,s.end());
-	    throw xml_scenario_error (msg.str());
 	}
     }
     
