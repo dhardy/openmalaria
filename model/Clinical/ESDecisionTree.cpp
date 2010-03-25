@@ -28,7 +28,7 @@
 namespace OM { namespace Clinical {
     using namespace OM::util;
     
-    void ESDecisionTree::setValues (ESDecisionValueMap dvMap, const vector< string >& valueList) {
+    void ESDecisionTree::setValues (ESDecisionValueMap& dvMap, const vector< string >& valueList) {
 	mask = dvMap.add_decision_values (decision, valueList);
 	values.resize (valueList.size());
 	size_t i = 0;
@@ -38,8 +38,8 @@ namespace OM { namespace Clinical {
     }
     
     ESDecisionValue ESDecisionRandom::determine (const ESDecisionValue input, ESHostData& hostData) const {
-	unordered_map<ESDecisionValue,vector<double> >::const_iterator it = set_cum_p.find (input);
-	if (it == set_cum_p.end())
+	map_cum_p_t::const_iterator it = map_cum_p.find (input);
+	if (it == map_cum_p.end())	// should only happen when "void" was specified as an output
 	    return ESDecisionValue();	// no decision
 	double sample = random::uniform_01 ();
 	size_t i = 0;
@@ -48,7 +48,7 @@ namespace OM { namespace Clinical {
 	return values[i];
     }
     
-    ESDecisionUC2Test::ESDecisionUC2Test (ESDecisionValueMap dvMap) {
+    ESDecisionUC2Test::ESDecisionUC2Test (ESDecisionValueMap& dvMap) {
 	decision = "pathogenesisState";
 	vector< string > valueList (2, "UC1");
 	valueList[1] = "UC2";
@@ -62,7 +62,7 @@ namespace OM { namespace Clinical {
 	    return values[0];
     }
     
-    ESDecisionAge5Test::ESDecisionAge5Test (ESDecisionValueMap dvMap) {
+    ESDecisionAge5Test::ESDecisionAge5Test (ESDecisionValueMap& dvMap) {
 	decision = "age5Test";
 	vector< string > valueList (2, "under5");
 	valueList[1] = "over5";
@@ -75,7 +75,7 @@ namespace OM { namespace Clinical {
 	    return values[0];
     }
     
-    ESDecisionParasiteTest::ESDecisionParasiteTest (ESDecisionValueMap dvMap) {
+    ESDecisionParasiteTest::ESDecisionParasiteTest (ESDecisionValueMap& dvMap) {
 	decision = "result";
 	
 	string vs[] = { "none", "microscopy", "RDT" };
@@ -110,8 +110,8 @@ std::size_t hash_value(ESDecisionValue const& b) {
     return hasher(b.id);
 }
 ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision, const std::vector< string > values) {
-    pair<id_map_type::iterator,bool> dec_pair = id_map.insert (make_pair (decision, map< string, id_type >()));
-    map< string, id_type >& valMap = dec_pair.first->second;	// alias new map
+    pair<id_map_type::iterator,bool> dec_pair = id_map.insert (make_pair (decision, value_map_t()));
+    value_map_t& valMap = dec_pair.first->second;	// alias new map
     if (dec_pair.second) {	// new entry; fill it
 	
 	// got length l = values.size() + 1 (default, "no outcome"); want minimal n such that: 2^n >= l
@@ -126,7 +126,7 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
 	id_type next=(1<<next_bit), step;
 	step=next;
 	BOOST_FOREACH ( const string& value, values ) {
-	    valMap[value] = next;
+	    valMap[value] = ESDecisionValue(next);
 	    next += step;
 	}
 	assert (next <= (1<<(n_bits+next_bit)));
@@ -134,7 +134,7 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
     } else {	// decision already exists; confirm values match
 	
 	set<string> new_values (values.begin(), values.end());
-	for (map< string, id_type >::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val) {
+	for (value_map_t::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val) {
 	    set<string>::iterator it = new_values.find (cur_val->first);
 	    if (it == new_values.end())
 		throw xml_scenario_error ((boost::format("CaseManagement: %1% values don't match (expected): %2%") % decision % cur_val->first).str());
@@ -153,7 +153,7 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
     
     // Set mask so bits which are used by values are 1:
     ESDecisionValue mask;
-    for (map< string, id_type >::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val)
+    for (value_map_t::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val)
 	mask |= cur_val->second;
     return mask;
 }
@@ -162,11 +162,17 @@ ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& v
     if (it == id_map.end())
 	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no decision %1%") %decision).str());
     
-    map< string, id_type >::const_iterator it2 = it->second.find (value);
+    value_map_t::const_iterator it2 = it->second.find (value);
     if (it2 == it->second.end())
 	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no value %1%(%2%)") %decision %value).str());
     
     return ESDecisionValue (it2->second);
+}
+const ESDecisionValueMap::value_map_t ESDecisionValueMap::getDecision (const string& decision) const {
+    id_map_type::const_iterator it = id_map.find (decision);
+    if (it == id_map.end ())
+	throw invalid_argument ((boost::format ("ESDecisionValueMap: no decision \"%1%\" known") %decision).str());
+    return it->second;
 }
 
 // -----  CMNode derivatives  -----

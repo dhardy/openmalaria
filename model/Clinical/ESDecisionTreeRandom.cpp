@@ -27,11 +27,9 @@
 #include <sstream>
 #include <boost/config/warning_disable.hpp>
 #include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_object.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
-#include <boost/fusion/include/io.hpp>
+#include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 
 using namespace OM::util;
 namespace qi = boost::spirit::qi;
@@ -104,15 +102,116 @@ namespace OM { namespace Clinical {
 	};
     }
     
-    ESDecisionRandom::ESDecisionRandom (ESDecisionValueMap dvMap, const ::scnXml::Decision& xmlDc) {
+    struct DR_processor {
+	DR_processor (const string& n, ESDecisionValueMap& dvm, ESDecisionRandom& d) : name(n), dvMap(dvm), dR(d) {}
+	void process (const parser::Outcome& outcome) {
+	    processOutcome(outcome,
+			   ESDecisionValue(),	/* 0: start with no outcomes */
+			   1.0				/* probability of reaching here, given all required values */
+	    );
+	    checkProbabilities ();
+	}
+	
+    private:
+	void processBranches (const parser::Branches& branches,
+			     ESDecisionValue dependValues,
+			     double dependP
+	){
+	    assert (branches.size ());	// spirit parser shouldn't allow this to happen
+	    string decision = branches[0].decision;
+	    if (decision == "p") {
+		
+		double cum_p = 0.0;
+		BOOST_FOREACH( const parser::Branch& branch, branches ) {
+		    assert (branch.decision == decision);	//TODO: catch in parser
+		    
+		    double p = boost::lexical_cast<double>( branch.dec_value );
+		    cum_p += p;
+		    dependP *= p;
+		    
+		    processOutcome( branch.outcome, dependValues, dependP );
+		}
+		// Test cum_p is approx. 1.0 in case the input tree is wrong. In any case, we force probabilities to add to 1.0.
+		if (cum_p < 0.999 || cum_p > 1.001)	//TODO: improve error message!
+		    throw util::xml_scenario_error ("ESCaseManagement: probabilities don't add up to 1.0 for some set of probability branches");
+		
+	    } else {
+		
+		ESDecisionValueMap::value_map_t valMap = dvMap.getDecision( decision );	// copy
+		BOOST_FOREACH( const parser::Branch& branch, branches ) {
+		    assert (branch.decision == decision);	//TODO: catch in parser
+		    
+		    ESDecisionValueMap::value_map_t::iterator valIt = valMap.find( branch.dec_value );
+		    if( valIt == valMap.end() )
+			throw xml_scenario_error((boost::format("%1%(%2%) encountered: %2% is not an outcome of %1%") %decision %branch.dec_value).str());
+		    
+		    processOutcome( branch.outcome, dependValues | valIt->second, dependP );
+		    
+		    valMap.erase( valIt );
+		}
+		if( !branches.empty() ){	// error: not all options were included
+		    //TODO: improve error message!
+		    ostringstream msg;
+		    msg << "Expected:";
+		    for (ESDecisionValueMap::value_map_t::iterator it = valMap.begin(); it != valMap.end(); ++it)
+			msg <<' '<<decision<<'('<<it->first<<')';
+		    throw xml_scenario_error( msg.str() );
+		}
+		
+	    }
+	}
+	void processOutcome (const parser::Outcome& outcome,
+			     ESDecisionValue dependValues,
+			     double dependP
+	){
+	    if ( const string* val_p = boost::get<string>( &outcome ) ) {
+		size_t i = 0;	// get index i in dR.values of this outcome
+		while (true) {
+		    if (i >= dR.values.size())
+			throw runtime_error("TODO: write a better message (213f1)!");
+		    if( dR.values[i] == dvMap.get( name, *val_p ) )
+			break;
+		    ++i;
+		}
+		
+		// find/make an entry for dependent decisions:
+		vector<double>& outcomes_cum_p = dR.map_cum_p[ dependValues ];
+		// make sure it's size is correct (will need resizing if just inserted):
+		outcomes_cum_p.resize( dR.values.size(), 0.0 );	// any new entries have p(0.0)
+		for (size_t j = i; j < outcomes_cum_p.size(); ++j)
+		    outcomes_cum_p[j] += dependP;
+	    } else if ( const parser::Branches* brs_p = boost::get<parser::Branches>( &outcome ) ) {
+		processBranches( *brs_p, dependValues, dependP );
+	    } else {
+		assert (false);
+	    }
+	}
+	
+	void checkProbabilities () {
+	    size_t l = dR.values.size();
+	    size_t l1 = l - 1;
+	    for( ESDecisionRandom::map_cum_p_t::iterator val_cum_p = dR.map_cum_p.begin(); val_cum_p != dR.map_cum_p.end(); ++val_cum_p ) {
+		assert( val_cum_p->second.size() == l );
+		// We force the last value to 1.0. It should be roughly that anyway due to
+		// previous checks; it doesn't really matter if this gives allows a small error.
+		val_cum_p->second[l1] = 1.0;
+	    }
+	}
+	
+	const string& name;	// name of tree this decision is for
+	ESDecisionValueMap& dvMap;
+	ESDecisionRandom& dR;
+    };
+    
+    ESDecisionRandom::ESDecisionRandom (ESDecisionValueMap& dvMap, const ::scnXml::Decision& xmlDc) {
 	decision = xmlDc.getName();
 	
-	// Set depends, values. Start by defining a rule matching a symbol:
 	typedef string::iterator iter_t;
 	typedef parser::list_grammar<iter_t> list_grammar;
 	list_grammar list_rule;
 	
 	
+	// Read depends:
 	string s = xmlDc.getDepends();
 	iter_t first = s.begin(); // we need a copy of the iterator, not a temporary
 	
@@ -129,6 +228,7 @@ namespace OM { namespace Clinical {
 	}
 	
 	
+	// Read values:
 	vector<string> valueList;
 	s = xmlDc.getValues();
 	first = s.begin();
@@ -147,6 +247,7 @@ namespace OM { namespace Clinical {
 	setValues (dvMap, valueList);
 	
 	
+	// Read tree:
 	typedef parser::DR_grammar<iter_t> DR_grammar;
 	DR_grammar tree_rule;
 	parser::Outcome tree;
@@ -168,24 +269,9 @@ namespace OM { namespace Clinical {
 	    msg << "ESDecision: failed to parse tree; remainder: " << string(first,s.end());
 	    throw xml_scenario_error (msg.str());
 	}
+	
+	DR_processor processor (decision, dvMap, *this);
+	processor.process (tree);
     }
     
-// -----  CMNode derivatives  -----
-/*
-ESCaseManagement::CMPBranchSet::CMPBranchSet (const scnXml::CM_pBranchSet::CM_pBranchSequence& branchSeq) {
-    double pAccumulation = 0.0;
-    branches.resize (branchSeq.size());
-    for (size_t i = 0; i < branchSeq.size(); ++i) {
-	branches[i].outcome = branchSeq[i].getOutcome ();
-	pAccumulation += branchSeq[i].getP ();
-	branches[i].cumP = pAccumulation;
-    }
-    // Test cumP is approx. 1.0 (in case the XML is wrong).
-    if (pAccumulation < 0.999 || pAccumulation > 1.001)
-	throw util::xml_scenario_error ("EndPoint probabilities don't add up to 1.0 (CaseManagementTree)");
-    // In any case, force it exactly 1.0 (because it could be slightly less,
-    // meaning a random number x could have cumP<x<1.0, causing index errors.
-    branches[branchSeq.size()-1].cumP = 1.0;
-}*/
-
 } }

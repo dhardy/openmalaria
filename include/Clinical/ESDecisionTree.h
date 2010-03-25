@@ -45,6 +45,9 @@ struct ESDecisionValue {
     inline ESDecisionValue operator& (const ESDecisionValue that) const {
 	return ESDecisionValue(id & that.id);
     }
+    inline ESDecisionValue operator| (const ESDecisionValue that) {
+	return ESDecisionValue( id | that.id );
+    }
     inline void operator|= (const ESDecisionValue that) {
 	id |= that.id;
     }
@@ -78,11 +81,18 @@ struct ESDecisionValueMap {
      * called first. */
     ESDecisionValue get (const string& decision, const string& value) const;
     
+    typedef map< string, ESDecisionValue > value_map_t;
+    /** Get a map of value names to ESDecisionValue objects.
+     *
+     * @throws invalid_argument when decision is not found */
+    const value_map_t getDecision (const string& decision) const;
+    
     private:
+	ESDecisionValueMap (const ESDecisionValueMap&) {assert(false);}	// disable copying
 	typedef ESDecisionValue::id_type id_type;
 	
 	// Map of decision to ( map of value to id )
-	typedef map< string, map< string, id_type > > id_map_type;
+	typedef map< string, value_map_t > id_map_type;
 	id_map_type id_map;
 	id_type next_bit;
 };
@@ -116,35 +126,38 @@ class ESDecisionTree {
         
     protected:
 	// Sets mask and values, given the decision's name and a set of values
-	void setValues (ESDecisionValueMap dvMap, const std::vector< string >& valueList);
+	void setValues (ESDecisionValueMap& dvMap, const std::vector< string >& valueList);
 };
 
 class ESDecisionRandom : public ESDecisionTree {
     public:
-	ESDecisionRandom (ESDecisionValueMap dvMap, const ::scnXml::Decision& xmlDc);
+	ESDecisionRandom (ESDecisionValueMap& dvMap, const ::scnXml::Decision& xmlDc);
 	virtual ESDecisionValue determine (const ESDecisionValue input, ESHostData& hostData) const;
 	
     private:
-	// a map of depended decision values to
-	// cumulative probabilities associated with values
+	// A map from depended decision values (represented as an or-d list of one
+	// value (or 0) from each dependency) to a list of cumulative probabilities.
+	// Indecies in this list map to the same index in values; last entry must be 1.0.
 	//NOTE: be interesting to compare performance with std::map
-	unordered_map<ESDecisionValue,vector<double> > set_cum_p;
+	typedef unordered_map<ESDecisionValue,vector<double> > map_cum_p_t;
+	map_cum_p_t map_cum_p;
+	friend struct DR_processor;
 };
 
 class ESDecisionUC2Test : public ESDecisionTree {
     public:
-	ESDecisionUC2Test (ESDecisionValueMap dvMap);
+	ESDecisionUC2Test (ESDecisionValueMap& dvMap);
 	virtual ESDecisionValue determine (const ESDecisionValue, ESHostData& hostData) const;
 };
 
 class ESDecisionAge5Test : public ESDecisionTree {
     public:
-	ESDecisionAge5Test (ESDecisionValueMap dvMap);
+	ESDecisionAge5Test (ESDecisionValueMap& dvMap);
 	virtual ESDecisionValue determine (const ESDecisionValue input, ESHostData& hostData) const;
 };
 class ESDecisionParasiteTest : public ESDecisionTree {
     public:
-	ESDecisionParasiteTest (ESDecisionValueMap dvMap);
+	ESDecisionParasiteTest (ESDecisionValueMap& dvMap);
 	virtual ESDecisionValue determine (const ESDecisionValue input, ESHostData& hostData) const;
     private:
 	// These shouldn't be static: they correspond to the passed-in dvMap and can
