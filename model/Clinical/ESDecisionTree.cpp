@@ -30,9 +30,10 @@ namespace OM { namespace Clinical {
     
     void ESDecisionTree::setValues (ESDecisionValueMap& dvMap, const vector< string >& valueList) {
 	mask = dvMap.add_decision_values (decision, valueList);
-	values.resize (valueList.size());
+	values.resize (valueList.size()+1);
+	values[0] = ESDecisionValue();	// "void" option
 	for( size_t i = 0; i < valueList.size(); ++i ) {
-	    values[i] = dvMap.get (decision, valueList[i]);
+	    values[i+1] = dvMap.get (decision, valueList[i]);
 	}
     }
     
@@ -48,7 +49,7 @@ namespace OM { namespace Clinical {
     }
     
     ESDecisionUC2Test::ESDecisionUC2Test (ESDecisionValueMap& dvMap) {
-	decision = "pathogenesisState";
+	decision = "case";
 	vector< string > valueList (2, "UC1");
 	valueList[1] = "UC2";
 	setValues (dvMap, valueList);
@@ -99,7 +100,7 @@ namespace OM { namespace Clinical {
 	} else if (input == test_RDT) {
 	    //FIXME: or values[0]
 	    return values[0];
-	} else
+	} else	// if output was void
 	    return ESDecisionValue();	// 0, no decision
     }
     
@@ -125,6 +126,8 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
 	id_type next=(1<<next_bit), step;
 	step=next;
 	BOOST_FOREACH ( const string& value, values ) {
+	    if( value == "void" )
+		throw xml_scenario_error( "void can not be a declared output of a decision" );
 	    valMap[value] = ESDecisionValue(next);
 	    next += step;
 	}
@@ -158,6 +161,9 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
     return mask;
 }
 ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& value) const {
+    if( value == "void" )
+	return ESDecisionValue();	// void always maps to 0
+    
     id_map_type::const_iterator it = id_map.find (decision);
     if (it == id_map.end())
 	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no decision %1%") %decision).str());
