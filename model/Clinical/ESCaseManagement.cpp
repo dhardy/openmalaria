@@ -128,7 +128,9 @@ CaseTreatment* ESDecisionMap::determine (OM::Clinical::ESHostData& hostData) {
     //TODO: suppositories as separate drug?
     unordered_map<ESDecisionValue,CaseTreatment*>::const_iterator treatment = treatments.find (outcomes);
     if (treatment == treatments.end ()) {
-	//FIXME: what do we do? Complain or ignore?
+	//FIXME: in one case, "no drug", this should be allowed.
+	//TODO: include decisions in message
+	throw xml_scenario_error ("decision outcome not found in list of treatments");
     } else {
 	return treatment->second;
     }

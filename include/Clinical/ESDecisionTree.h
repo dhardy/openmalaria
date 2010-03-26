@@ -60,9 +60,13 @@ struct ESDecisionValue {
 	id_type id;
 	
 	friend std::size_t hash_value(ESDecisionValue const& b);
+	friend ostream& operator<< (ostream& stream, const ESDecisionValue v);
 	friend class ESDecisionValueMap;
 };
 std::size_t hash_value(ESDecisionValue const& b);
+inline ostream& operator<< (ostream& stream, const ESDecisionValue v){
+    return (stream << v.id);
+}
 
 /// Value assignment map for ESDecisionValue (manager class).
 struct ESDecisionValueMap {

@@ -31,9 +31,8 @@ namespace OM { namespace Clinical {
     void ESDecisionTree::setValues (ESDecisionValueMap& dvMap, const vector< string >& valueList) {
 	mask = dvMap.add_decision_values (decision, valueList);
 	values.resize (valueList.size());
-	size_t i = 0;
-	BOOST_FOREACH ( const string& value, valueList ) {
-	    values[i] = dvMap.get (decision, value);
+	for( size_t i = 0; i < valueList.size(); ++i ) {
+	    values[i] = dvMap.get (decision, valueList[i]);
 	}
     }
     
@@ -129,7 +128,8 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
 	    valMap[value] = ESDecisionValue(next);
 	    next += step;
 	}
-	assert (next <= (1<<(n_bits+next_bit)));
+	next_bit += n_bits;
+	assert (next <= (1u<<next_bit));
 	
     } else {	// decision already exists; confirm values match
 	
@@ -166,7 +166,8 @@ ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& v
     if (it2 == it->second.end())
 	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no value %1%(%2%)") %decision %value).str());
     
-    return ESDecisionValue (it2->second);
+    //cout << "ESDecisionValueMap::get ("<<decision<<", "<<value<<"): "<<it2->second.id<<endl;
+    return it2->second;
 }
 const ESDecisionValueMap::value_map_t ESDecisionValueMap::getDecision (const string& decision) const {
     id_map_type::const_iterator it = id_map.find (decision);

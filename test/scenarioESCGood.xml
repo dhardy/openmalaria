@@ -73,8 +73,9 @@
     <EventScheduler>
       <uncomplicated >
         <decision name="test" depends="" values="none,microscopy,RDT">
-          p(.8): one
-          p(.2): zero
+          p(.1): none
+          p(.4): microscopy
+          p(.5): RDT
         </decision>
       </uncomplicated>
       <complicated >

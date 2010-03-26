@@ -89,7 +89,7 @@ namespace OM { namespace Clinical {
 		
 		symbol %= lexeme[ +( alnum | '.' | '_' ) ] ;
 		tree %= branches | symbol ;
-		outcome %= '{' > branches > '}' | ':' > symbol ;
+		outcome %= ('{' > branches > '}') | (':' > symbol) ;
 		branch %= symbol >> '(' > symbol > ')' > outcome ;
 		branches %= +branch ;
 	    }
@@ -165,11 +165,12 @@ namespace OM { namespace Clinical {
 			     double dependP
 	){
 	    if ( const string* val_p = boost::get<string>( &outcome ) ) {
+		ESDecisionValue val = dvMap.get( name, *val_p );
 		size_t i = 0;	// get index i in dR.values of this outcome
 		while (true) {
 		    if (i >= dR.values.size())
-			throw runtime_error("TODO: write a better message (213f1)!");
-		    if( dR.values[i] == dvMap.get( name, *val_p ) )
+			throw logic_error( ( boost::format("unable to find index for %1%(%2%) (code error)") %name %*val_p ).str() );
+		    if( dR.values[i] == val )
 			break;
 		    ++i;
 		}
@@ -244,6 +245,7 @@ namespace OM { namespace Clinical {
 	    throw xml_scenario_error (msg.str());
 	}
 	
+	// Calling a base-class function in the constructor, but it's not virtual so isn't an issue:
 	setValues (dvMap, valueList);
 	
 	
@@ -256,7 +258,7 @@ namespace OM { namespace Clinical {
 	if (content_p == NULL)
 	    throw runtime_error ("ESDecision: bad upcast?!");
 	s = *content_p;
-	cout << "Got content: "<<s<<endl;
+	//cout << "Got content: "<<s<<endl;
 	first = s.begin();
 	
 	// For now, we ignore output and just test it wil pass the tree
