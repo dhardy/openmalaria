@@ -88,10 +88,14 @@
         </treatments>
       </uncomplicated>
       <complicated >
-        <decision name="drug" depends="" values="">
-          void
+        <decision name="drug" depends="" values="MF_sev">
+          MF_sev
         </decision>
         <treatments>
+          <treatment drug="MF_sev">
+            <!-- made-up, BIG dose -->
+            <medicate name="MF" qty="300000" time="0"/>
+          </treatment>
         </treatments>
       </complicated>
       <ClinicalOutcomes severeMask="0">

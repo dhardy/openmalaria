@@ -86,20 +86,50 @@ struct ESDecisionValueMap {
     ESDecisionValue get (const string& decision, const string& value) const;
     
     typedef map< string, ESDecisionValue > value_map_t;
-    /** Get a map of value names to ESDecisionValue objects.
+    /** Get a pair of the following, for decision:
+     * first: a mask covering all decision's outputs
+     * second: a map of value names to ESDecisionValue objects
      *
      * @throws invalid_argument when decision is not found */
-    const value_map_t getDecision (const string& decision) const;
+    const pair< ESDecisionValue, value_map_t > getDecision (const string& decision) const;
+    
+    class ValueFormatter {
+	const ESDecisionValueMap& parent;
+	const ESDecisionValue value;
+	
+    public:
+	ValueFormatter( const ESDecisionValueMap& p, const ESDecisionValue v ) : parent(p), value(v) {}
+	friend ostream& operator<<( ostream& stream, const ValueFormatter& f );
+    };
+    /** Formats all decision outcomes indicated by an ESDecisionValue, in the
+     * format "decision(value), d2(v2)".
+     * 
+     * Use: "stream << format( value );"
+     *
+     * This is for error reporting in exceptional situations, and therefore
+     * doesn't need to be fast.
+     * 
+     * This must be a member of ESDecisionValueMap and not ESDecisionValue
+     * since ESDecisionValue doesn't know what the codes mean. */
+    inline ValueFormatter format( const ESDecisionValue v ) const{
+	return ValueFormatter( *this, v );
+    }
+    /// Implementation of format( ESDecisionValue )
+    void format( const ESDecisionValue v, ostream& stream ) const;
     
     private:
 	ESDecisionValueMap (const ESDecisionValueMap&) {assert(false);}	// disable copying
 	typedef ESDecisionValue::id_type id_type;
 	
-	// Map of decision to ( map of value to id )
-	typedef map< string, value_map_t > id_map_type;
+	// Map of decision to ( pair ( mask, map of value to id ) )
+	typedef map< string, pair< ESDecisionValue, value_map_t > > id_map_type;
 	id_map_type id_map;
 	id_type next_bit;
 };
+inline ostream& operator<<( ostream& stream, const ESDecisionValueMap::ValueFormatter& f ){
+    f.parent.format( f.value, stream );
+    return stream;
+}
 
 struct ESHostData {
     ESHostData (double aY, WithinHostModel& wH, Pathogenesis::State pS) :

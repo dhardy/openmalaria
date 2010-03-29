@@ -94,7 +94,8 @@ void ESDecisionMap::initialize (const ::scnXml::HSESCaseManagement& xmlCM, bool 
     
     
     // Read treatments:
-    const ESDecisionValueMap::value_map_t& drugCodes = dvMap.getDecision("drug");
+    pair< ESDecisionValue, ESDecisionValueMap::value_map_t > mask_vmap_pair = dvMap.getDecision("drug");
+    const ESDecisionValueMap::value_map_t& drugCodes = mask_vmap_pair.second;
     treatments_t unmodified_treatments;
     BOOST_FOREACH( const ::scnXml::HSESTreatment& treatment, xmlCM.getTreatments().getTreatment() ){
 	unmodified_treatments.insert( make_pair( treatmentGetValue( drugCodes, treatment.getDrug() ), new CaseTreatment( treatment.getMedicate() ) ) );
@@ -104,11 +105,15 @@ void ESDecisionMap::initialize (const ::scnXml::HSESCaseManagement& xmlCM, bool 
     treatments = unmodified_treatments;
     // Include "void" input with an empty CaseTreatment:
     treatments[ESDecisionValue()] = new CaseTreatment (::scnXml::HSESTreatment::MedicateSequence());
+    
+    treatmentMask = mask_vmap_pair.first;
 }
 ESDecisionMap::~ESDecisionMap () {
     BOOST_FOREACH ( ESDecisionTree* d, decisions ) {
 	delete d;
     }
+    for( treatments_t::iterator it = treatments.begin(); it != treatments.end(); ++it )
+	delete it->second;
 }
 
 ESDecisionValue ESDecisionMap::determine (OM::Clinical::ESHostData& hostData) const {
@@ -125,12 +130,12 @@ ESDecisionValue ESDecisionMap::determine (OM::Clinical::ESHostData& hostData) co
 CaseTreatment* ESDecisionMap::getTreatment (ESDecisionValue outcome) const {
     // Find our outcome.
     //TODO: suppositories as separate drug?
-    ESDecisionValue masked = outcome | treatmentMask;
+    ESDecisionValue masked = outcome & treatmentMask;
     unordered_map<ESDecisionValue,CaseTreatment*>::const_iterator treatment = treatments.find (masked);
     if (treatment == treatments.end ()) {
-	//FIXME: in one case, "no drug", this should be allowed.
-	//TODO: include decisions in message
-	throw xml_scenario_error ("decision outcome not found in list of treatments");
+	ostringstream msg;
+	msg<<"decision outcome "<<dvMap.format( masked )<<" not found in list of treatments";
+	throw xml_scenario_error (msg.str());
     } else {
 	return treatment->second;
     }
@@ -173,14 +178,13 @@ void ESCaseManagement::execute (list<MedicateData>& medicateQueue, Pathogenesis:
     
     ESHostData hostData (ageYears, withinHostModel, pgState);
     
-    ESDecisionValue dec_outcome = map->determine (hostData);
+    ESDecisionValue outcome = map->determine (hostData);
     
-    CaseTreatment* treatment = NULL;	//FIXME
+    CaseTreatment* treatment = map->getTreatment(outcome);
     
     // We always remove any queued medications.
     medicateQueue.clear();
-    if (treatment != NULL)
-	treatment->apply (medicateQueue);
+    treatment->apply (medicateQueue);
 }
 
 } }

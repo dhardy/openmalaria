@@ -137,7 +137,7 @@ namespace OM { namespace Clinical {
 		
 	    } else {
 		
-		ESDecisionValueMap::value_map_t valMap = dvMap.getDecision( decision );	// copy
+		ESDecisionValueMap::value_map_t valMap = dvMap.getDecision( decision ).second;	// copy
 		BOOST_FOREACH( const parser::Branch& branch, branches ) {
 		    assert (branch.decision == decision);	//TODO: catch in parser
 		    

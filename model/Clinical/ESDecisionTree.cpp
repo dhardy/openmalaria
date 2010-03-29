@@ -110,8 +110,8 @@ std::size_t hash_value(ESDecisionValue const& b) {
     return hasher(b.id);
 }
 ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision, const std::vector< string > values) {
-    pair<id_map_type::iterator,bool> dec_pair = id_map.insert (make_pair (decision, value_map_t()));
-    value_map_t& valMap = dec_pair.first->second;	// alias new map
+    pair<id_map_type::iterator,bool> dec_pair = id_map.insert( make_pair (decision, make_pair ( ESDecisionValue(), value_map_t() ) ) );
+    value_map_t& valMap = dec_pair.first->second.second;	// alias new map
     if (dec_pair.second) {	// new entry; fill it
 	
 	// got length l = values.size() + 1 (default, "no outcome"); want minimal n such that: 2^n >= l
@@ -128,11 +128,19 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
 	BOOST_FOREACH ( const string& value, values ) {
 	    if( value == "void" )
 		throw xml_scenario_error( "void can not be a declared output of a decision" );
+// 	    cout<<"ESDecisionValue: "<<decision<<'('<<value<<"): "<<next<<endl;
 	    valMap[value] = ESDecisionValue(next);
 	    next += step;
 	}
 	next_bit += n_bits;
 	assert (next <= (1u<<next_bit));
+	
+	// Set mask so bits which are used by values are 1:
+	ESDecisionValue mask;
+	for (value_map_t::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val)
+	mask |= cur_val->second;
+// 	cout<<"Mask for "<<decision<<": "<<mask<<endl;
+	dec_pair.first->second.first = mask;
 	
     } else {	// decision already exists; confirm values match
 	
@@ -154,11 +162,7 @@ ESDecisionValue ESDecisionValueMap::add_decision_values (const string& decision,
 	
     }
     
-    // Set mask so bits which are used by values are 1:
-    ESDecisionValue mask;
-    for (value_map_t::const_iterator cur_val = valMap.begin(); cur_val != valMap.end(); ++cur_val)
-	mask |= cur_val->second;
-    return mask;
+    return dec_pair.first->second.first;
 }
 ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& value) const {
     if( value == "void" )
@@ -168,18 +172,38 @@ ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& v
     if (it == id_map.end())
 	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no decision %1%") %decision).str());
     
-    value_map_t::const_iterator it2 = it->second.find (value);
-    if (it2 == it->second.end())
+    value_map_t::const_iterator it2 = it->second.second.find (value);
+    if (it2 == it->second.second.end())
 	throw runtime_error ((boost::format("ESDecisionValueMap::get(): no value %1%(%2%)") %decision %value).str());
     
     //cout << "ESDecisionValueMap::get ("<<decision<<", "<<value<<"): "<<it2->second.id<<endl;
     return it2->second;
 }
-const ESDecisionValueMap::value_map_t ESDecisionValueMap::getDecision (const string& decision) const {
+const pair< ESDecisionValue, ESDecisionValueMap::value_map_t > ESDecisionValueMap::getDecision (const string& decision) const {
     id_map_type::const_iterator it = id_map.find (decision);
     if (it == id_map.end ())
 	throw invalid_argument ((boost::format ("ESDecisionValueMap: no decision \"%1%\" known") %decision).str());
     return it->second;
+}
+
+void ESDecisionValueMap::format( const ESDecisionValue v, ostream& stream ) const {
+    bool second = false;	// prepend second, third, etc., with ", "
+    for( id_map_type::const_iterator dec_it = id_map.begin(); dec_it != id_map.end(); ++dec_it ) {
+	ESDecisionValue masked = v & dec_it->second.first;
+	if( !(masked == ESDecisionValue()) ) {	// if not 0
+	    for( value_map_t::const_iterator it = dec_it->second.second.begin(); it != dec_it->second.second.end(); ++it ) {
+		if( masked == it->second ){
+		    if( second )
+			stream << ", ";
+		    stream << dec_it->first<<'('<<it->first<<')';
+		    second = true;
+		    goto foundValue;
+		}
+	    }
+	    assert( false );	// v matched mask but no value: this shouldn't happen!
+	    foundValue:;
+	}
+    }
 }
 
 // -----  CMNode derivatives  -----
