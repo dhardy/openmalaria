@@ -57,9 +57,9 @@ namespace OM { namespace Clinical {
     ESDecisionValue ESDecisionUC2Test::determine (const ESDecisionValue, ESHostData& hostData) const {
 	assert (hostData.pgState & Pathogenesis::SICK && !(hostData.pgState & Pathogenesis::COMPLICATED));
 	if (hostData.pgState & Pathogenesis::SECOND_CASE)	//TODO: check this actually gets set
-	    return values[1];
+	    return values[2];
 	else
-	    return values[0];
+	    return values[1];
     }
     
     ESDecisionAge5Test::ESDecisionAge5Test (ESDecisionValueMap& dvMap) {
@@ -70,9 +70,9 @@ namespace OM { namespace Clinical {
     }
     ESDecisionValue ESDecisionAge5Test::determine (const ESDecisionValue input, ESHostData& hostData) const {
 	if (hostData.ageYears >= 5.0)
-	    return values[1];
+	    return values[2];
 	else
-	    return values[0];
+	    return values[1];
     }
     
     ESDecisionParasiteTest::ESDecisionParasiteTest (ESDecisionValueMap& dvMap) {
@@ -95,11 +95,11 @@ namespace OM { namespace Clinical {
     ESDecisionValue ESDecisionParasiteTest::determine (const ESDecisionValue input, ESHostData& hostData) const {
 	if (input == test_microscopy) {
 	    // if (hostData.withinHost.getDensity () > ...)
-	    //FIXME: or values[0]
-	    return values[1];
+	    //FIXME: or values[1]
+	    return values[2];
 	} else if (input == test_RDT) {
-	    //FIXME: or values[0]
-	    return values[0];
+	    //FIXME: or values[1]
+	    return values[2];
 	} else	// if output was void
 	    return ESDecisionValue();	// 0, no decision
     }
