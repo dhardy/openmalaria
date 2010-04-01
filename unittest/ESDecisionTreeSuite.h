@@ -91,6 +91,18 @@ public:
 	TS_ASSERT_EQUALS( val_string.str(), "a(1), c(9)" );
     }
     
+    /* Runs d.determine( input, hd ) N times
+     * returns the proportion of these runs where the output equalled expectedOutput
+     */
+    double determineNTimes (int N, const ESDecisionTree& d, const ESDecisionValue input, const ESHostData& hd, const ESDecisionValue expectedOutput) {
+	int nExpected = 0;
+	for (int i = 0; i < N; ++i) {
+	    if( d.determine( input, hd ) == expectedOutput )
+		++nExpected;
+	}
+	return double(nExpected) / double(N);
+    }
+    
     void testRandom () {
 	ESHostData hd(
 		numeric_limits< double >::quiet_NaN(),
@@ -113,10 +125,14 @@ public:
 	    "a,b"	// values
 	);
 	ESDecisionRandom ut_r( dvMap, ut_r_xml );
-	// TODO: test that ut_r.decide produces a 80% of the time and b 20%
 	
-	// TODO: Test handling of void input
-	// TODO: test handling of input dependencies
+	const int N = 10000;
+	const double LIM = .02;
+	double propPos;	// proportion positive
+	
+	// test that ut_r.decide produces a 80% of the time and b 20%:
+	propPos = determineNTimes( N, ut_r, ESDecisionValue(), hd, dvMap.get( "myR", "a" ) );
+	TS_ASSERT_DELTA( propPos, .8, LIM );
 	
 	// deterministic decision
 	vector<string> vals;
@@ -130,7 +146,11 @@ public:
 	    "i",	// depends
 	    "a,b"	// values
 	);
-// 	ESDecisionRandom ut_d( dvMap, ut_d_xml );
+	ESDecisionRandom ut_d( dvMap, ut_d_xml );
+	
+	TS_ASSERT_EQUALS( ut_d.determine( dvMap.get( "i", "1" ), hd ), dvMap.get( "d", "a" ) );
+	TS_ASSERT_EQUALS( ut_d.determine( ESDecisionValue(), hd ), ESDecisionValue() );	// void input and output
+	TS_ASSERT_EQUALS( ut_d.determine( dvMap.get( "i", "2" ), hd ), dvMap.get( "d", "b" ) );
     }
     
     void testUC2Test () {
@@ -155,18 +175,6 @@ public:
 	TS_ASSERT_EQUALS( d.determine( ESDecisionValue(), hd ), dvMap.get( "age5Test", "under5" ) );
 	hd.ageYears = 5.0;
 	TS_ASSERT_EQUALS( d.determine( ESDecisionValue(), hd ), dvMap.get( "age5Test", "over5" ) );
-    }
-    
-    /* Runs d.determine( input, hd ) N times
-     * returns the proportion of these runs where the output equalled expectedOutput
-     */
-    double determineNTimes (int N, const ESDecisionTree& d, const ESDecisionValue input, const ESHostData& hd, const ESDecisionValue expectedOutput) {
-	int nExpected = 0;
-	for (int i = 0; i < N; ++i) {
-	    if( d.determine( input, hd ) == expectedOutput )
-		++nExpected;
-	}
-	return double(nExpected) / double(N);
     }
     
     void testParasiteTest () {
