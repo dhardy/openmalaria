@@ -111,7 +111,7 @@ public:
 	);
 	
 	// random decision
-	scnXml::Decision ut_r_xml ("\
+	scnXml::HSESDecision ut_r_xml ("\
 		p(.5) {\
 		    p(.9): a\
 		    p(.1): b\
@@ -139,7 +139,7 @@ public:
 	vals += "1","2";
 	dvMap.add_decision_values( "i", vals );
 	
-	scnXml::Decision ut_d_xml ("\
+	scnXml::HSESDecision ut_d_xml ("\
 		i(1): a\
 		i(2): b",
 	    "d",	// decision

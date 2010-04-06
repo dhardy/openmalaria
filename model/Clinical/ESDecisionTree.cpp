@@ -219,7 +219,7 @@ ESDecisionValue ESDecisionValueMap::get (const string& decision, const string& v
 const pair< ESDecisionValue, ESDecisionValueMap::value_map_t > ESDecisionValueMap::getDecision (const string& decision) const {
     id_map_type::const_iterator it = id_map.find (decision);
     if (it == id_map.end ())
-	throw invalid_argument ((boost::format ("ESDecisionValueMap: no decision \"%1%\" known") %decision).str());
+	throw invalid_argument ((boost::format ("ESDecisionValueMap: no decision %1%") %decision).str());
     return it->second;
 }
 
@@ -242,23 +242,5 @@ void ESDecisionValueMap::format( const ESDecisionValue v, ostream& stream ) cons
 	}
     }
 }
-
-// -----  CMNode derivatives  -----
-/*
-ESCaseManagement::CMPBranchSet::CMPBranchSet (const scnXml::CM_pBranchSet::CM_pBranchSequence& branchSeq) {
-    double pAccumulation = 0.0;
-    branches.resize (branchSeq.size());
-    for (size_t i = 0; i < branchSeq.size(); ++i) {
-	branches[i].outcome = branchSeq[i].getOutcome ();
-	pAccumulation += branchSeq[i].getP ();
-	branches[i].cumP = pAccumulation;
-    }
-    // Test cumP is approx. 1.0 (in case the XML is wrong).
-    if (pAccumulation < 0.999 || pAccumulation > 1.001)
-	throw util::xml_scenario_error ("EndPoint probabilities don't add up to 1.0 (CaseManagementTree)");
-    // In any case, force it exactly 1.0 (because it could be slightly less,
-    // meaning a random number x could have cumP<x<1.0, causing index errors.
-    branches[branchSeq.size()-1].cumP = 1.0;
-}*/
 
 } }
