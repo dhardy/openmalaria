@@ -45,7 +45,7 @@ inline ESDecisionValue treatmentGetValue (const ESDecisionValueMap::value_map_t&
     ESDecisionValueMap::value_map_t::const_iterator it = vmap.find (value);
     if (it == vmap.end())
 	// value is "void" or something unknown; neither is acceptable
-	throw xml_scenario_error((format("Treatment for drug %1% which isn't an output of \"drug\" decision") %value).str());
+	throw xml_scenario_error((format("Treatment description given for treatment %1% which isn't an output of \"treatment\" decision") %value).str());
     return it->second;
 }
 void ESDecisionMap::initialize (const ::scnXml::HSESCaseManagement& xmlCM, bool complicated) {
@@ -129,7 +129,6 @@ ESDecisionValue ESDecisionMap::determine (OM::Clinical::ESHostData& hostData) co
 }
 CaseTreatment* ESDecisionMap::getTreatment (ESDecisionValue outcome) const {
     // Find our outcome.
-    //TODO: suppositories as separate drug?
     ESDecisionValue masked = outcome & treatmentMask;
     unordered_map<ESDecisionValue,CaseTreatment*>::const_iterator treatment = treatments.find (masked);
     if (treatment == treatments.end ()) {

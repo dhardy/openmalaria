@@ -32,6 +32,7 @@
 #include <list>
 #include <boost/unordered_map.hpp>
 
+class ESCaseManagementSuite;
 
 namespace OM { namespace Clinical {
     using WithinHost::WithinHostModel;
@@ -91,10 +92,10 @@ class ESDecisionMap {
         ~ESDecisionMap();
 	/** Read decision trees from an XML element.
 	 *
-	 * @param decisions XML element describing probabilistic decisions
+	 * @param cm XML element describing probabilistic decisions and treatments
 	 * @param complicated Determines whether hard-coded decisions for the
 	 * uncomplicated or complicated case are added. */
-	void initialize (const ::scnXml::HSESCaseManagement& decisions, bool complicated);
+	void initialize (const ::scnXml::HSESCaseManagement& cm, bool complicated);
         
         /** Run decision tree to arrive at an outcome.
 	 *
@@ -116,6 +117,8 @@ class ESDecisionMap {
 	treatments_t treatments;
 	// Used to mask ESDecisionValues before lookup in treatments:
 	ESDecisionValue treatmentMask;
+	
+	friend class ::ESCaseManagementSuite;	// unittest
 };
 
 
