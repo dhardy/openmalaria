@@ -151,6 +151,17 @@ public:
 	TS_ASSERT_EQUALS( ut_d.determine( dvMap.get( "i", "1" ), hd ), dvMap.get( "d", "a" ) );
 	TS_ASSERT_EQUALS( ut_d.determine( ESDecisionValue(), hd ), ESDecisionValue() );	// void input and output
 	TS_ASSERT_EQUALS( ut_d.determine( dvMap.get( "i", "2" ), hd ), dvMap.get( "d", "b" ) );
+	
+	scnXml::HSESDecision ut_void_xml ("\
+		i(1): a\
+		i(2): b\
+		i(void): b",		// depending on a void input is illegal
+	    "e",	// decision
+	    "i",	// depends
+	    "a,b"	// values
+	);
+	// Check we get an error (this isn't the best message, but it does what we need):
+	TS_ASSERT_THROWS_EQUALS( ESDecisionRandom ut_e( dvMap, ut_void_xml ), const std::runtime_error &e, string(e.what()), "i(void) encountered: void is not an outcome of i" );
     }
     
     void testUC2Test () {

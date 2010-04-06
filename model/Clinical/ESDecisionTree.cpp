@@ -68,7 +68,7 @@ namespace OM { namespace Clinical {
 	valueList[1] = "over5";
 	setValues (dvMap, valueList);
     }
-    ESDecisionValue ESDecisionAge5Test::determine (const ESDecisionValue input, const ESHostData& hostData) const {
+    ESDecisionValue ESDecisionAge5Test::determine (const ESDecisionValue, const ESHostData& hostData) const {
 	if (hostData.ageYears >= 5.0)
 	    return values[2];	// over5
 	else
@@ -93,8 +93,8 @@ namespace OM { namespace Clinical {
     }
     
     ESDecisionValue ESDecisionParasiteTest::determine (const ESDecisionValue input, const ESHostData& hostData) const {
-	if (input == test_none)
-	    return ESDecisionValue();	// 0, no decision
+	if (input == test_none || input == ESDecisionValue())	// no test or void (no decision)
+	    return ESDecisionValue();	// void, no decision
 	else {
 	    double dens = hostData.withinHost.getTotalDensity ();
 	    double pPositive = 0.0;	// chance of a positive result

@@ -1397,13 +1397,14 @@
         OUTCOME, DECISION, VALUE := SYMBOL
         
         Semantically, each OUTCOME must be one of the values associated with this decision
-        or "void". For each BRANCH_SET each BRANCH must have the same DECISION, which
-        must be either:
-        * One of the dependencies mentioned in "depends". The VALUE immediately following in
+        or "void" (indicating not relevent/no decision, and forcing all decisions dependent on this
+        to also output void).
+        For each BRANCH_SET each BRANCH must have the same DECISION, which must be one of:
+        * One of the dependencies mentioned in "depends": the VALUE immediately following in
           brackets must correspond to one of its output values. The BRANCH_SET immediately
           containing this BRANCH must represent each output value of the same decision
           exactly once, and no parent BRANCH_SET may be for the same DECISION.
-        * Or: "p". This indicates a probalistic decision. In this case the value is a
+        * "p": this indicates a probalistic decision. In this case the value is a
           probability, the sum of all values for the BRANCH_SET must be 1 and the decision
           must be associated directly with OUTCOMEs (not sub-TREEs).
       </xs:documentation>
