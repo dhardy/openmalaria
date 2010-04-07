@@ -125,11 +125,14 @@ public:
 	treatment1 |= dMap.dvMap.get( "modD2", "B2" );
 	treatment1 |= dMap.dvMap.get( "modSTR", "selective" );
 	
-	const CaseTreatment *ct = dMap.getTreatment( treatment1 );
-	TS_ASSERT( ct != NULL );
-	TS_ASSERT_EQUALS( ct->medications.size(), 1u );
+	const ESTreatmentSchedule *sched = dMap.getSchedule( treatment1 );
+	TS_ASSERT( sched != NULL );
 	
-	const MedicateData& md = ct->medications[0];
+	list<MedicateData> medQueue;
+	sched->apply( medQueue );
+	TS_ASSERT_EQUALS( medQueue.size(), 1u );
+	
+	const MedicateData& md = medQueue.front();
 	TS_ASSERT_EQUALS( md.abbrev, "B" );
 	TS_ASSERT_EQUALS( md.qty, 600.0 );
 	TS_ASSERT_EQUALS( md.time, 19.0 );

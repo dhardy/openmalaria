@@ -31,6 +31,79 @@ namespace OM { namespace Clinical {
     using boost::format;
 
 
+// -----  ESTreatmentSchedule  -----
+
+ESTreatmentSchedule::ESTreatmentSchedule (const scnXml::HSESTreatmentSchedule& sched) {
+    const ::scnXml::HSESTreatmentSchedule::MedicateSequence& mSeq = sched.getMedicate();
+    medications.resize (mSeq.size ());
+    for (size_t j = 0; j < mSeq.size(); ++j) {
+	medications[j].abbrev = mSeq[j].getDrug();
+	medications[j].qty = mSeq[j].getMg();
+	medications[j].time = mSeq[j].getHour() / 24.0;	// convert from hours to days
+    }
+}
+
+ESTreatmentSchedule* ESTreatmentSchedule::modify (const scnXml::HSESTMMultiplyQty&) const {
+    
+}
+
+
+// -----  ESTreatment  -----
+
+ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTreatment& elt) {
+    typedef ESDecisionValueMap::value_map_t value_map_t;
+    
+    schedules[ ESDecisionValue() ] = new ESTreatmentSchedule( elt.getSchedule() );
+    Schedules startSchedules;
+    
+    BOOST_FOREACH( const scnXml::HSESTreatmentModifier& modifier, elt.getModifier() ){
+	schedules.swap( startSchedules );
+	for( Schedules::iterator it = schedules.begin(); it != schedules.end(); ++it ) {
+	    delete it->second;
+	}
+	schedules.clear();
+	
+	value_map_t decVals = dvMap.getDecision( modifier.getDecision() ).second;	// copy
+	schedules.rehash( decVals.size() / schedules.max_load_factor() + 1 );
+	
+	if( modifier.getMultiplyQty().size() ) {
+	    BOOST_FOREACH( const scnXml::HSESTMMultiplyQty& mod, modifier.getMultiplyQty() ){
+		value_map_t::iterator it = decVals.find( mod.getValue() );
+		if( it == decVals.end() )
+		    throw xml_scenario_error( (boost::format("modifier sub-element for non-existant decision value %1%(%2%)") %modifier.getDecision() %mod.getValue()).str() );
+		ESDecisionValue val = it->second;
+		decVals.erase( it );
+		
+		for( Schedules::iterator s = startSchedules.begin(); s != startSchedules.end(); ++s ){
+		    schedules[ s->first | val ] = s->second->modify( mod );
+		}
+	    }
+	} else if( modifier.getDelay().size() ) {
+	} else if( modifier.getSelectTimeRange().size() ) {
+	} else
+	    throw xml_scenario_error( "modifier element without any sub-elements" );
+	
+	if( !decVals.empty() ){
+	    //TODO: error msg
+	}
+    }
+}
+
+ESTreatment::~ESTreatment() {
+    for( Schedules::iterator it = schedules.begin(); it != schedules.end(); ++it ) {
+	delete it->second;
+    }
+}
+
+ESTreatmentSchedule* ESTreatment::getSchedule (ESDecisionValue& outcome) const {
+    outcome = outcome & schedulesMask;
+    Schedules::const_iterator it = schedules.find (outcome);
+    if (it == schedules.end ())
+	return NULL;
+    else
+	return it->second;
+}
+
 // -----  ESDecisionMap  -----
 
 inline bool hasAllDependencies (const ESDecisionTree* decision, const set<string>& dependencies) {
@@ -96,23 +169,31 @@ void ESDecisionMap::initialize (const ::scnXml::HSESCaseManagement& xmlCM, bool 
     // Read treatments:
     pair< ESDecisionValue, ESDecisionValueMap::value_map_t > mask_vmap_pair = dvMap.getDecision("treatment");
     const ESDecisionValueMap::value_map_t& treatmentCodes = mask_vmap_pair.second;
-    treatments_t unmodified_treatments;
     BOOST_FOREACH( const ::scnXml::HSESTreatment& treatment, xmlCM.getTreatments().getTreatment() ){
-	unmodified_treatments.insert( make_pair( treatmentGetValue( treatmentCodes, treatment.getName() ), new CaseTreatment( treatment.getSchedule().getMedicate() ) ) );
+	treatments[treatmentGetValue( treatmentCodes, treatment.getName() )] = new ESTreatment( dvMap, treatment );
     }
-    //TODO: introduce and apply modifiers
-    // for now, just copy
-    treatments = unmodified_treatments;
-    // Include "void" input with an empty CaseTreatment:
-    treatments[ESDecisionValue()] = new CaseTreatment (::scnXml::HSESTreatmentSchedule::MedicateSequence());
+    // Associate "void" input with an ESTreatment which has just one, empty, ESTreatmentSchedule:
+    treatments[ESDecisionValue()] = new ESTreatment(
+	dvMap,
+	scnXml::HSESTreatment(
+	    scnXml::HSESTreatmentSchedule(),	// empty base schedule
+	    "void"		// name of treatment
+	)
+    );
     
-    treatmentMask = mask_vmap_pair.first;
+    treatmentsMask = mask_vmap_pair.first;
+    
+    
+    // TODO: could check at this point that all possible combinations of
+    // decision outputs (including void) resolve a treatment (so we don't get
+    // exceptions when running big workunits on BOINC).
 }
+
 ESDecisionMap::~ESDecisionMap () {
     BOOST_FOREACH ( ESDecisionTree* d, decisions ) {
 	delete d;
     }
-    for( treatments_t::iterator it = treatments.begin(); it != treatments.end(); ++it )
+    for( Treatments::iterator it = treatments.begin(); it != treatments.end(); ++it )
 	delete it->second;
 }
 
@@ -127,24 +208,26 @@ ESDecisionValue ESDecisionMap::determine (OM::Clinical::ESHostData& hostData) co
     }
     return outcomes;
 }
-CaseTreatment* ESDecisionMap::getTreatment (ESDecisionValue outcome) const {
-    // Find our outcome.
-    ESDecisionValue masked = outcome & treatmentMask;
-    unordered_map<ESDecisionValue,CaseTreatment*>::const_iterator treatment = treatments.find (masked);
-    if (treatment == treatments.end ()) {
-	ostringstream msg;
-	msg<<"decision outcome "<<dvMap.format( masked )<<" not found in list of treatments";
-	throw xml_scenario_error (msg.str());
-    } else {
-	return treatment->second;
+ESTreatmentSchedule* ESDecisionMap::getSchedule (ESDecisionValue outcome) const {
+    ESDecisionValue masked = outcome & treatmentsMask;
+    Treatments::const_iterator it = treatments.find (masked);
+    if (it != treatments.end ()) {
+	ESTreatmentSchedule* ret = it->second->getSchedule( outcome );
+	if( ret != NULL )
+	    return ret;
+	masked = masked & outcome;
     }
+    
+    ostringstream msg;
+    msg<<"decision outcome "<<dvMap.format( masked )<<" not found in list of treatments";
+    throw xml_scenario_error (msg.str());
 }
 
 
 // -----  ESCaseManagement  -----
 
 ESDecisionMap ESCaseManagement::uncomplicated, ESCaseManagement::complicated;
-CaseTreatment* ESCaseManagement::mdaDoses;
+ESTreatmentSchedule* ESCaseManagement::mdaDoses;
 
 void ESCaseManagement::init () {
     // Assume EventScheduler data was checked present:
@@ -155,7 +238,9 @@ void ESCaseManagement::init () {
     // MDA Intervention data
     const scnXml::Interventions::MDADescriptionOptional mdaDesc = InputData().getInterventions().getMDADescription();
     if (mdaDesc.present()) {
-	mdaDoses = new CaseTreatment ( mdaDesc.get().getMedicate() );
+	if( !mdaDesc.get().getSchedule().present() )
+	    throw xml_scenario_error( "MDA description requires a treatment schedule with ES case management" );
+	mdaDoses = new ESTreatmentSchedule ( mdaDesc.get().getSchedule().get() );
     } else
 	mdaDoses = NULL;
 }
@@ -179,11 +264,11 @@ void ESCaseManagement::execute (list<MedicateData>& medicateQueue, Pathogenesis:
     
     ESDecisionValue outcome = map->determine (hostData);
     
-    CaseTreatment* treatment = map->getTreatment(outcome);
+    ESTreatmentSchedule* schedule = map->getSchedule(outcome);
     
     // We always remove any queued medications.
     medicateQueue.clear();
-    treatment->apply (medicateQueue);
+    schedule->apply (medicateQueue);
 }
 
 } }

@@ -46,7 +46,7 @@ struct ESDecisionValue {
     inline ESDecisionValue operator& (const ESDecisionValue that) const {
 	return ESDecisionValue(id & that.id);
     }
-    inline ESDecisionValue operator| (const ESDecisionValue that) {
+    inline ESDecisionValue operator| (const ESDecisionValue that) const {
 	return ESDecisionValue( id | that.id );
     }
     inline void operator|= (const ESDecisionValue that) {

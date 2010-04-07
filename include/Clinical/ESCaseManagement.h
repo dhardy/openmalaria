@@ -53,35 +53,52 @@ struct MedicateData {
     double time;	/// Time to medicate at (days from start of timestep, may be >= 1 (not this timestep))
 };
 
-/// Data type stored in decisions
-struct CaseTreatment {
-    CaseTreatment (const ::scnXml::HSESTreatmentSchedule::MedicateSequence& mSeq) {
-	medications.resize (mSeq.size ());
-	for (size_t j = 0; j < mSeq.size(); ++j) {
-	    medications[j].abbrev = mSeq[j].getDrug();
-	    medications[j].qty = mSeq[j].getMg();
-	    medications[j].time = mSeq[j].getHour() / 24.0;	// convert from hours to days
-	}
-    }
+/** A final treatment schedule (after application of applicable modifiers). */
+struct ESTreatmentSchedule {
+    ESTreatmentSchedule (const scnXml::HSESTreatmentSchedule& sched);
+    
+    /// Modify the schedule here and return a copy as a new Object (ownership
+    /// passed). This object isn't changed.
+    ESTreatmentSchedule* modify (const scnXml::HSESTMMultiplyQty&) const;
     
     /// Add medications into medicate queue
-    inline void apply (list<MedicateData>& medicateQueue) {
-	//TODO: apply treatment adjustments (missed doses, quality, age, delay (below))
-	// Extract treatment-seeking delay from id (branch of our case-management tree)
-// 	int delay = (id & Decision::TSDELAY_MASK) >> Decision::TSDELAY_SHIFT;
-// 	assert (delay <= Decision::TSDELAY_NUM_MAX);
-	
-	for (vector<MedicateData>::iterator it = medications.begin(); it != medications.end(); ++it) {
+    inline void apply (list<MedicateData>& medicateQueue) const {
+	for (vector<MedicateData>::const_iterator it = medications.begin(); it != medications.end(); ++it)
 	    medicateQueue.push_back (*it);
-// 	    medicateQueue.back().time += double(delay);
-	}
     }
     
-    /// Data for each medicate() call.
-    vector<MedicateData> medications;
+    private:
+	/// Data for each medicate() call.
+	vector<MedicateData> medications;
 };
 
-/** Decision trees representation, mapping inputs to a CaseTreatment pointer.
+/** A set of all modified forms of a treatment schedule. Corresponds to a
+ * treatment (base schedule + modifiers) given in the XML.
+ * 
+ * The reason we can't just have all schedules (all modified variants) in one
+ * list, is because each set of modifications has its own mask.
+ *****************************************************************************/
+class ESTreatment {
+    public:
+	/** Construct from a base schedule and modifiers.
+	 * 
+	 * Also neede the decision value map. */
+	ESTreatment (const ESDecisionValueMap& dvMap, const scnXml::HSESTreatment& elt);
+	~ESTreatment();
+	
+	/** Given an input ESDecisionValue, find a variant of the base treatment
+	 * schedule.
+	 *
+	 * May return NULL (handled by ESDecisionMap::getTreatment()). */
+	ESTreatmentSchedule* getSchedule (ESDecisionValue&) const;
+	
+    private:
+	typedef unordered_map<ESDecisionValue,ESTreatmentSchedule*> Schedules;
+	Schedules schedules;
+	ESDecisionValue schedulesMask;
+};
+
+/** Decision trees representation, mapping inputs to a ESTreatmentSchedule pointer.
  *
  * Used to represent a UC/UC2 or severe decision tree.
  *****************************************************************************/
@@ -102,21 +119,28 @@ class ESDecisionMap {
 	 * @returns An outcome as a binary-or'd list of decision values. */
         ESDecisionValue determine (ESHostData& hostData) const;
 	
-	/** Given a decision-tree outcome, return a corresponding case-treatment
-	 * object. Return-value should always point to an existing CaseTreatment
-	 * object (which shouldn't be deleted by the caller). */
-	CaseTreatment* getTreatment (ESDecisionValue outcome) const;
+	/** Given a decision-tree outcome, return a corresponding treatment
+	 * schedule. Return-value should always point to an existing
+	 * ESTreatmentSchedule object (shouldn't be deleted by the caller).
+	 * 
+	 * If the treatment decision (outcome & treatmentMask) is "void", an
+	 * empty schedule is returned. If, however, this is non-void but not
+	 * found, or found but a treatment schedule is not, an error is thrown.
+	 */
+	ESTreatmentSchedule* getSchedule (ESDecisionValue outcome) const;
         
     private:
+	// All data here should be set by ESCaseManagement::init(); don't checkpoint.
+	
 	ESDecisionValueMap dvMap;
 	
         // Currently we walk through all decisions, required or not
         vector<ESDecisionTree*> decisions;
 	
-	typedef unordered_map<ESDecisionValue,CaseTreatment*> treatments_t;
-	treatments_t treatments;
+	typedef unordered_map<ESDecisionValue,ESTreatment*> Treatments;
+	Treatments treatments;
 	// Used to mask ESDecisionValues before lookup in treatments:
-	ESDecisionValue treatmentMask;
+	ESDecisionValue treatmentsMask;
 	
 	friend class ::ESCaseManagementSuite;	// unittest
 };
@@ -141,7 +165,7 @@ class ESCaseManagement {
         static ESDecisionMap uncomplicated, complicated;
 	
 	/// MDA dosage info; null pointer if not provided
-	static CaseTreatment* mdaDoses;
+	static ESTreatmentSchedule* mdaDoses;
 	//END
 };
 
