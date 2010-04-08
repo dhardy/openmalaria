@@ -74,27 +74,26 @@ public:
 	treatSched.setMedicate( medicateSeq );
 	
 	// Modifiers
-	xsd::cxx::tree::sequence<scnXml::HSESTMMultiplyQty, false> modQtySeq;
-	modQtySeq.push_back( scnXml::HSESTMMultiplyQty( "2,1.3", "extra", "A,B" ) );
-	modQtySeq.push_back( scnXml::HSESTMMultiplyQty( "0.5,0.2", "poor", "A,B" ) );
+	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifierEffect, false> modQtySeq;
+	modQtySeq.push_back( scnXml::HSESTreatmentModifierEffect( "extra", "A(2),B(1.3)" ) );
+	modQtySeq.push_back( scnXml::HSESTreatmentModifierEffect( "poor", " A(0.5) , B( 0.2 ) " ) );
 	scnXml::HSESTreatmentModifier modQty( "modQty" );
 	modQty.setMultiplyQty( modQtySeq );
 	
-	xsd::cxx::tree::sequence<scnXml::HSESTMDelay, false> modD1Seq;
-	modD1Seq.push_back( scnXml::HSESTMDelay( "0,0", "0", "A,B" ) );
-	modD1Seq.push_back( scnXml::HSESTMDelay( "5,5", "5", "A,B" ) );
+	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifierEffect, false> modD1Seq;
+	modD1Seq.push_back( scnXml::HSESTreatmentModifierEffect( "0", "A(0),B(0)" ) );
+	modD1Seq.push_back( scnXml::HSESTreatmentModifierEffect( "5", "A(5),B(5)" ) );
 	scnXml::HSESTreatmentModifier modD1( "modD1" );
 	modD1.setDelay( modD1Seq );
 	
-	xsd::cxx::tree::sequence<scnXml::HSESTMDelay, false> modD2Seq;
-	modD2Seq.push_back( scnXml::HSESTMDelay( "2,0", "B2", "B,A" ) );	// note: backwards
-	modD2Seq.push_back( scnXml::HSESTMDelay( "0,5", "B5", "A,B" ) );
+	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifierEffect, false> modD2Seq;
+	modD2Seq.push_back( scnXml::HSESTreatmentModifierEffect( "B2", "B(2 ),A(0) " ) );	// note: backwards
 	scnXml::HSESTreatmentModifier modD2( "modD2" );
 	modD2.setDelay( modD2Seq );
 	
-	xsd::cxx::tree::sequence<scnXml::HSESTMSelectTimeRange, false> modSTRSeq;
-	modSTRSeq.push_back( scnXml::HSESTMSelectTimeRange( "0-100,0-100", "all", "A,B" ) );
-	modSTRSeq.push_back( scnXml::HSESTMSelectTimeRange( "0-0,2-100", "selective", "A,B" ) );
+	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifierEffect, false> modSTRSeq;
+	modSTRSeq.push_back( scnXml::HSESTreatmentModifierEffect( "all", "A(0-100),B(0-100)" ) );
+	modSTRSeq.push_back( scnXml::HSESTreatmentModifierEffect( "selective", "A(0-0),B(2-100)" ) );
 	scnXml::HSESTreatmentModifier modSTR( "modSTR" );
 	
 	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifier, false> modifierSeq;

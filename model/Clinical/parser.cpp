@@ -24,10 +24,12 @@
 #include "util/errors.hpp"
 
 #include <sstream>
-#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/home/qi.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/spirit/home/phoenix/operator/self.hpp>
+#include <boost/spirit/home/phoenix/object/construct.hpp>
 
 using namespace OM::util;
 /** We use boost::spirit (2.1) for parsing here. A warning: debugging this
@@ -36,6 +38,7 @@ using namespace OM::util;
  *************************************************************************/
 namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
+using namespace boost::phoenix;
 
 // We need to tell fusion about our Branch struct to make it a first-class
 // fusion citizen. This has to be in global scope.
@@ -47,6 +50,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 namespace OM { namespace Clinical {
+    typedef string::const_iterator iter_t;
     namespace parser {
 	template <typename Iterator>
 	struct list_grammar : qi::grammar<Iterator, SymbolList(), ascii::space_type> {
@@ -83,15 +87,50 @@ namespace OM { namespace Clinical {
 	    qi::rule<Iterator, Branch(), ascii::space_type> branch;
 	    qi::rule<Iterator, Branches(), ascii::space_type> branches;
 	};
+	
+	template <typename Iterator>
+	struct SymbolValueMap_grammar : qi::grammar<Iterator, SymbolValueMap(), ascii::space_type> {
+	    SymbolValueMap_grammar() : SymbolValueMap_grammar::base_type(map) {
+		using qi::alnum;
+		using qi::digit;
+		using qi::lexeme;
+		using qi::double_;
+		using qi::_val;
+		using qi::_1;
+		using qi::_2;
+		
+		symbol %= lexeme[ +( alnum | '.' | '_' ) ];
+		map = (symbol > '(' > double_ > ')')[_val[_1] = _2] % ',';
+	    }
+	    
+	    qi::rule<Iterator, string(), ascii::space_type> symbol;
+	    qi::rule<Iterator, SymbolValueMap(), ascii::space_type> map;
+	};
+	
+	template <typename Iterator>
+	struct SymbolRangeMap_grammar : qi::grammar<Iterator, SymbolRangeMap(), ascii::space_type> {
+	    SymbolRangeMap_grammar() : SymbolRangeMap_grammar::base_type(map) {
+		using qi::alnum;
+		using qi::digit;
+		using qi::lexeme;
+		using qi::double_;
+		using qi::_val;
+		using qi::_1;
+		using qi::_2;
+		using qi::_3;
+		
+		symbol %= lexeme[ +( alnum | '.' | '_' ) ];
+		map = (symbol > '(' > double_ > '-' > double_ > ')')[_val[_1] = construct< pair<double,double > >(_2,_3)] % ',';
+	    }
+	    
+	    qi::rule<Iterator, string(), ascii::space_type> symbol;
+	    qi::rule<Iterator, SymbolRangeMap(), ascii::space_type> map;
+	};
     }
     
-    parser::SymbolList parser::parseCSS (const string& s, const string& errObj) {
-	typedef string::const_iterator iter_t;
-	typedef parser::list_grammar<iter_t> list_grammar;
-	
-	list_grammar list_rule;
+    parser::SymbolList parser::parseSymbolList (const string& s, const string& errObj) {
+	parser::list_grammar<iter_t> list_rule;
 	iter_t first = s.begin(); // we need a copy of the iterator, not a temporary
-	
 	SymbolList ret;
 	
 	qi::phrase_parse(
@@ -114,10 +153,7 @@ namespace OM { namespace Clinical {
     }
     
     parser::Outcome parser::parseTree (const string& s, const string& errObj) {
-	typedef string::const_iterator iter_t;
-	typedef parser::DR_grammar<iter_t> DR_grammar;
-	
-	DR_grammar tree_rule;
+	parser::DR_grammar<iter_t> tree_rule;
 	iter_t first = s.begin();
 	parser::Outcome tree;
 	
@@ -138,5 +174,53 @@ namespace OM { namespace Clinical {
 	}
 	
 	return tree;
+    }
+    
+    parser::SymbolValueMap parser::parseSymbolValueMap (const string& s, const string& errObj) {
+	parser::SymbolValueMap_grammar<iter_t> list_rule;
+	iter_t first = s.begin(); // we need a copy of the iterator, not a temporary
+	SymbolValueMap ret;
+	
+	qi::phrase_parse(
+		first, s.end(),	// iterators
+		list_rule,		// rule
+		ascii::space,	// space skipper
+		ret			// output (type must match rule's attribute type)
+	);
+	
+	if (first != s.end ()) {
+	    ostringstream msg;
+	    msg
+		<< "failed to parse comma-separated fields for " << errObj
+		<< "; remainder: " << string(first,s.end())
+	    ;
+	    throw xml_scenario_error (msg.str());
+	}
+	
+	return ret;
+    }
+    
+    parser::SymbolRangeMap parser::parseSymbolRangeMap (const string& s, const string& errObj) {
+	parser::SymbolRangeMap_grammar<iter_t> list_rule;
+	iter_t first = s.begin(); // we need a copy of the iterator, not a temporary
+	SymbolRangeMap ret;
+	
+	qi::phrase_parse(
+		first, s.end(),	// iterators
+		list_rule,		// rule
+		ascii::space,	// space skipper
+		ret			// output (type must match rule's attribute type)
+	);
+	
+	if (first != s.end ()) {
+	    ostringstream msg;
+	    msg
+		<< "failed to parse comma-separated fields for " << errObj
+		<< "; remainder: " << string(first,s.end())
+	    ;
+	    throw xml_scenario_error (msg.str());
+	}
+	
+	return ret;
     }
 } }

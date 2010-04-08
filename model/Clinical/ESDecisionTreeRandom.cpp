@@ -146,9 +146,9 @@ namespace OM { namespace Clinical {
 	decision = xmlDc.getName();
 	string decErrStr = "decision "+decision;
 	
-	depends = parser::parseCSS( xmlDc.getDepends(), decision+" depends attribute" );
+	depends = parser::parseSymbolList( xmlDc.getDepends(), decision+" depends attribute" );
 	
-	vector<string> valueList = parser::parseCSS( xmlDc.getValues(), decision+" values attribute" );
+	vector<string> valueList = parser::parseSymbolList( xmlDc.getValues(), decision+" values attribute" );
 	// Calling a base-class function in the constructor, but it's not virtual so isn't an issue:
 	setValues (dvMap, valueList);
 	

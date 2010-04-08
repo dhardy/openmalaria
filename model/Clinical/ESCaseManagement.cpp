@@ -20,6 +20,7 @@
 
 #include "Clinical/ESCaseManagement.h"
 #include "Clinical/ESDecisionTree.h"
+#include "Clinical/parser.h"
 #include "inputData.h"
 #include "util/errors.hpp"
 
@@ -43,16 +44,57 @@ ESTreatmentSchedule::ESTreatmentSchedule (const scnXml::HSESTreatmentSchedule& s
     }
 }
 
-ESTreatmentSchedule* ESTreatmentSchedule::modify (const scnXml::HSESTMMultiplyQty&) const {
-    
+void ESTreatmentSchedule::multiplyQty (const map<string,double>& m, const string& errObj) {
+    for( vector<MedicateData>::iterator med = medications.begin(); med != medications.end(); ++med ){
+	map<string,double>::const_iterator it = m.find( med->abbrev );
+	if( it == m.end() )
+	    throw xml_scenario_error( (boost::format("%1%: no effect described for drug (ingredient) %2%") %errObj %med->abbrev).str() );
+	med->qty *= it->second;
+    }
+}
+void ESTreatmentSchedule::delay (const map<string,double>& m, const string& errObj) {
+    for( vector<MedicateData>::iterator med = medications.begin(); med != medications.end(); ++med ){
+	map<string,double>::const_iterator it = m.find( med->abbrev );
+	if( it == m.end() )
+	    throw xml_scenario_error( (boost::format("%1%: no effect described for drug (ingredient) %2%") %errObj %med->abbrev).str() );
+	med->time += it->second;
+    }
+}
+void ESTreatmentSchedule::selectTimeRange (const map< string, pair<double,double> >& m, const string& errObj) {
+    for( vector<MedicateData>::iterator med = medications.begin(); med != medications.end(); ){
+	map< string, pair<double,double> >::const_iterator it = m.find( med->abbrev );
+	if( it == m.end() )
+	    throw xml_scenario_error( (boost::format("%1%: no effect described for drug (ingredient) %2%") %errObj %med->abbrev).str() );
+	if( it->second.first <= med->time && med->time < it->second.second )
+	    ++med;
+	else
+	    med = medications.erase( med );	// NOTE: inefficient on a vector... not very important here though
+    }
 }
 
 
 // -----  ESTreatment  -----
 
+typedef ESDecisionValueMap::value_map_t value_map_t;
+
+// functions extracted just to avoid repeating this 3 times:
+string modFormatErrMsg( const string& elt, const string& dec, const string& val ){
+    // Formats an error-message to pass to sub-functions (due to way it's passed, needs to be generated anyway)
+    ostringstream msg;
+    msg << "modifier of treatment "<<elt
+	<<" sub-element for decision value "<<dec<<'('<<val<<')';
+    return msg.str();
+}
+ESDecisionValue modGetESDecVal( value_map_t& decVals, const scnXml::HSESTreatmentModifierEffect& mod, const string& errObj ){
+    value_map_t::iterator it = decVals.find( mod.getValue() );
+    if( it == decVals.end() )
+	throw xml_scenario_error( errObj+": value doesn't exist" );
+    ESDecisionValue val = it->second;
+    decVals.erase( it );
+    return val;
+}
+
 ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTreatment& elt) {
-    typedef ESDecisionValueMap::value_map_t value_map_t;
-    
     schedules[ ESDecisionValue() ] = new ESTreatmentSchedule( elt.getSchedule() );
     Schedules startSchedules;
     
@@ -66,26 +108,59 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 	value_map_t decVals = dvMap.getDecision( modifier.getDecision() ).second;	// copy
 	schedules.rehash( decVals.size() / schedules.max_load_factor() + 1 );
 	
+	//FIXME: select modifications MUST happen before delay modifications to conform to spec!
 	if( modifier.getMultiplyQty().size() ) {
-	    BOOST_FOREACH( const scnXml::HSESTMMultiplyQty& mod, modifier.getMultiplyQty() ){
-		value_map_t::iterator it = decVals.find( mod.getValue() );
-		if( it == decVals.end() )
-		    throw xml_scenario_error( (boost::format("modifier sub-element for non-existant decision value %1%(%2%)") %modifier.getDecision() %mod.getValue()).str() );
-		ESDecisionValue val = it->second;
-		decVals.erase( it );
+	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier.getMultiplyQty() ){
+		string errObj = modFormatErrMsg( elt.getName(), modifier.getDecision(), mod.getValue() );
+		ESDecisionValue val = modGetESDecVal( decVals, mod, errObj );
+		const parser::SymbolValueMap& m = parser::parseSymbolValueMap( mod.getEffect(), errObj );
 		
 		for( Schedules::iterator s = startSchedules.begin(); s != startSchedules.end(); ++s ){
-		    schedules[ s->first | val ] = s->second->modify( mod );
+		    ESTreatmentSchedule *ts = new ESTreatmentSchedule( *s->second );
+		    ts->multiplyQty( m, errObj );
+		    schedules[ s->first | val ] = ts;
 		}
 	    }
 	} else if( modifier.getDelay().size() ) {
+	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier.getDelay() ){
+		string errObj = modFormatErrMsg( elt.getName(), modifier.getDecision(), mod.getValue() );
+		ESDecisionValue val = modGetESDecVal( decVals, mod, errObj );
+		const parser::SymbolValueMap& m = parser::parseSymbolValueMap( mod.getEffect(), errObj );
+		
+		for( Schedules::iterator s = startSchedules.begin(); s != startSchedules.end(); ++s ){
+		    ESTreatmentSchedule *ts = new ESTreatmentSchedule( *s->second );
+		    ts->delay( m, errObj );
+		    schedules[ s->first | val ] = ts;
+		}
+	    }
 	} else if( modifier.getSelectTimeRange().size() ) {
+	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier.getSelectTimeRange() ){
+		string errObj = modFormatErrMsg( elt.getName(), modifier.getDecision(), mod.getValue() );
+		ESDecisionValue val = modGetESDecVal( decVals, mod, errObj );
+		const parser::SymbolRangeMap& m = parser::parseSymbolRangeMap( mod.getEffect(), errObj );
+		
+		for( Schedules::iterator s = startSchedules.begin(); s != startSchedules.end(); ++s ){
+		    ESTreatmentSchedule *ts = new ESTreatmentSchedule( *s->second );
+		    ts->selectTimeRange( m, errObj );
+		    schedules[ s->first | val ] = ts;
+		}
+	    }
 	} else
 	    throw xml_scenario_error( "modifier element without any sub-elements" );
 	
 	if( !decVals.empty() ){
-	    //TODO: error msg
+	    ostringstream msg;
+	    msg << "modifier for treatment "<<elt.getName()
+		<< " by decision "<<modifier.getDecision()
+		<<": effect not described for values:";
+	    for( value_map_t::iterator it = decVals.begin(); it != decVals.end(); ++it )
+		msg<<' '<<it->first;
+	    throw xml_scenario_error( msg.str() );
 	}
+    }
+    
+    for( Schedules::iterator it = startSchedules.begin(); it != startSchedules.end(); ++it ) {
+	delete it->second;
     }
 }
 

@@ -25,10 +25,12 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <boost/config/warning_disable.hpp>
 #include <boost/variant.hpp>
 
 using std::string;
+using std::pair;
 
 namespace OM { namespace Clinical {
     namespace parser {
@@ -43,13 +45,30 @@ namespace OM { namespace Clinical {
 	    Outcome outcome;
 	};
 	
+	typedef std::map<string,double> SymbolValueMap;
+	typedef std::map< string,pair<double,double> > SymbolRangeMap;
 	
+	
+	/** @brief Parser functions.
+	 *
+	 * Each takes a string s which it parses, and a string errObj which it
+	 * uses to explain where a parse error occurred. */
+	//@{
 	/** Parse s as a comma-separated list of symbols and return a
 	 * SymbolList (a symbol must match [a-zA-Z0-9\._]+). */
-	SymbolList parseCSS (const string& s, const string& errObj);
+	SymbolList parseSymbolList (const string& s, const string& errObj);
 	
 	/** Parse s as a decision tree. */
 	Outcome parseTree (const string& s, const string& errObj);
+	
+	/** Parse s as a comma-separated list of symbol-value pairs of the form
+	 * SYMBOL(VALUE), where symbol is as above and value is a number. */
+	SymbolValueMap parseSymbolValueMap (const string& s, const string& errObj);
+	
+	/** Similar to parseSymbolValueMap, but value is a pair of doubles
+	 * formatted as A-B. */
+	SymbolRangeMap parseSymbolRangeMap (const string& s, const string& errObj);
+	//@}
     }
 } }
 #endif

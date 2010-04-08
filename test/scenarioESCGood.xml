@@ -99,9 +99,9 @@
               <medicate drug="MF" mg="3000" hour="12"/>
             </schedule>
             <modifier decision="test">
-              <multiplyQty value="none" drugs="MF">0.5</multiplyQty>
-              <multiplyQty value="microscopy" drugs="MF">1.0</multiplyQty>
-              <multiplyQty value="RDT" drugs="MF">1.0</multiplyQty>
+              <multiplyQty value="none" MF="0.5" />
+              <multiplyQty value="microscopy">MF(1.0)</multiplyQty>
+              <multiplyQty value="RDT" effect="MF(1.0)"/>
             </modifier>
             <modifier decision="adherence">
               <selectTimeRange value="full" drugs="MF">0-13</selectTimeRange>
