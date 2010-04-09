@@ -59,9 +59,9 @@ struct ESTreatmentSchedule {
     
     /// Multiply the quantity of each medication based on the value of this map.
     void multiplyQty (const map<string,double>&, const string& errObj);
-    /// Delay the time of each medication based on the value of this map.
+    /// Delay the time of each medication based on the value of this map, in hours.
     void delay (const map<string,double>&, const string& errObj);
-    /// Remove medications not in time range described by this map.
+    /// Remove medications not in time range (in hours) described by this map.
     void selectTimeRange (const map< string, pair<double,double> >&, const string& errObj);
     
     /// Add medications into medicate queue

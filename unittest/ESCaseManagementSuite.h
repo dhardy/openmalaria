@@ -46,7 +46,7 @@ public:
 	vals += "0","5";
 	dMap.dvMap.add_decision_values( "modD1", vals );
 	vals.clear();
-	vals += "B2", "B5";
+	vals += "B2";
 	dMap.dvMap.add_decision_values( "modD2", vals );
 	vals.clear();
 	vals += "all", "selective";
@@ -92,9 +92,10 @@ public:
 	modD2.setDelay( modD2Seq );
 	
 	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifierEffect, false> modSTRSeq;
-	modSTRSeq.push_back( scnXml::HSESTreatmentModifierEffect( "all", "A(0-100),B(0-100)" ) );
-	modSTRSeq.push_back( scnXml::HSESTreatmentModifierEffect( "selective", "A(0-0),B(2-100)" ) );
+	modSTRSeq.push_back( scnXml::HSESTreatmentModifierEffect( "all", "A(0-100),B( 0-100)" ) );
+	modSTRSeq.push_back( scnXml::HSESTreatmentModifierEffect( "selective", "A(0-1000 ),B(2-100)" ) );
 	scnXml::HSESTreatmentModifier modSTR( "modSTR" );
+	modSTR.setSelectTimeRange( modSTRSeq );
 	
 	xsd::cxx::tree::sequence<scnXml::HSESTreatmentModifier, false> modifierSeq;
 	modifierSeq.push_back( modQty );
@@ -118,23 +119,37 @@ public:
     }
     
     void testTreatments() {
-	ESDecisionValue treatment1 = dMap.dvMap.get( "treatment", "treatment1" );
-	treatment1 |= dMap.dvMap.get( "modQty", "poor" );
-	treatment1 |= dMap.dvMap.get( "modD1", "5" );
-	treatment1 |= dMap.dvMap.get( "modD2", "B2" );
-	treatment1 |= dMap.dvMap.get( "modSTR", "selective" );
+	// Note: use ETS_..., not TS_..., when assertion should throw if false (prevent dangerous operations)
 	
-	const ESTreatmentSchedule *sched = dMap.getSchedule( treatment1 );
-	TS_ASSERT( sched != NULL );
-	
+	const ESTreatmentSchedule *sched;
+	sched = dMap.getSchedule( ESDecisionValue() );	// void input should resolve an empty schedule
+	ETS_ASSERT( sched != NULL );
 	list<MedicateData> medQueue;
 	sched->apply( medQueue );
-	TS_ASSERT_EQUALS( medQueue.size(), 1u );
+	TS_ASSERT_EQUALS( medQueue.size(), 0u );
 	
-	const MedicateData& md = medQueue.front();
-	TS_ASSERT_EQUALS( md.abbrev, "B" );
-	TS_ASSERT_EQUALS( md.qty, 600.0 );
-	TS_ASSERT_EQUALS( md.time, 19.0 );
+	ESDecisionValue treatment1 = dMap.dvMap.get( "treatment", "treatment1" );	// has 3 treatments; A at time 0 and B at times 0,12
+	treatment1 |= dMap.dvMap.get( "modQty", "poor" );	// reduce quantities
+	treatment1 |= dMap.dvMap.get( "modD1", "5" );	// delay by 5 hours
+	treatment1 |= dMap.dvMap.get( "modD2", "B2" );	// delay B by 2 hours
+	treatment1 |= dMap.dvMap.get( "modSTR", "selective" );	// A-0 and B-12 should be kept (B-0 shouldn't, since delays should be added after selection)
+	
+	sched = dMap.getSchedule( treatment1 );
+	ETS_ASSERT( sched != NULL );
+	
+	medQueue.clear();
+	sched->apply( medQueue );
+	ETS_ASSERT_EQUALS( medQueue.size(), 2u );
+	
+	const MedicateData& md1 = medQueue.front();
+	TS_ASSERT_EQUALS( md1.abbrev, "A" );
+	TS_ASSERT_EQUALS( md1.qty, 500.0 );
+	TS_ASSERT_EQUALS( md1.time, 5.0 );
+	medQueue.pop_front();
+	const MedicateData& md2 = medQueue.front();
+	TS_ASSERT_EQUALS( md2.abbrev, "B" );
+	TS_ASSERT_EQUALS( md2.qty, 600.0 );
+	TS_ASSERT_EQUALS( md2.time, 19.0 );
     }
     
 private:

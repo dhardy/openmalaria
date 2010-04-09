@@ -46,7 +46,9 @@ namespace OM { namespace Clinical {
 	};
 	
 	typedef std::map<string,double> SymbolValueMap;
-	typedef std::map< string,pair<double,double> > SymbolRangeMap;
+	
+	typedef std::pair<double,double> DoubleRange;
+	typedef std::map<string,DoubleRange> SymbolRangeMap;
 	
 	
 	/** @brief Parser functions.
@@ -65,8 +67,8 @@ namespace OM { namespace Clinical {
 	 * SYMBOL(VALUE), where symbol is as above and value is a number. */
 	SymbolValueMap parseSymbolValueMap (const string& s, const string& errObj);
 	
-	/** Similar to parseSymbolValueMap, but value is a pair of doubles
-	 * formatted as A-B. */
+	/** Similar to parseSymbolValueMap, but value is a double pair of the
+	 * form A-B. */
 	SymbolRangeMap parseSymbolRangeMap (const string& s, const string& errObj);
 	//@}
     }

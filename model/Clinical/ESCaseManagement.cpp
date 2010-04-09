@@ -57,7 +57,7 @@ void ESTreatmentSchedule::delay (const map<string,double>& m, const string& errO
 	map<string,double>::const_iterator it = m.find( med->abbrev );
 	if( it == m.end() )
 	    throw xml_scenario_error( (boost::format("%1%: no effect described for drug (ingredient) %2%") %errObj %med->abbrev).str() );
-	med->time += it->second;
+	med->time += it->second / 24.0;	// convert to days
     }
 }
 void ESTreatmentSchedule::selectTimeRange (const map< string, pair<double,double> >& m, const string& errObj) {
@@ -65,7 +65,9 @@ void ESTreatmentSchedule::selectTimeRange (const map< string, pair<double,double
 	map< string, pair<double,double> >::const_iterator it = m.find( med->abbrev );
 	if( it == m.end() )
 	    throw xml_scenario_error( (boost::format("%1%: no effect described for drug (ingredient) %2%") %errObj %med->abbrev).str() );
-	if( it->second.first <= med->time && med->time < it->second.second )
+	double timeH = med->time * 24.0;	// convert back to hours for comparisons
+	cout<<"selectTimeRange with range ["<<it->second.first<<','<<it->second.second<<"), time: "<<timeH<<endl;
+	if( it->second.first <= timeH && timeH < it->second.second )
 	    ++med;
 	else
 	    med = medications.erase( med );	// NOTE: inefficient on a vector... not very important here though
@@ -81,8 +83,8 @@ typedef ESDecisionValueMap::value_map_t value_map_t;
 string modFormatErrMsg( const string& elt, const string& dec, const string& val ){
     // Formats an error-message to pass to sub-functions (due to way it's passed, needs to be generated anyway)
     ostringstream msg;
-    msg << "modifier of treatment "<<elt
-	<<" sub-element for decision value "<<dec<<'('<<val<<')';
+    msg << "treatment \""<<elt
+	<<"\" modifier for decision value "<<dec<<'('<<val<<')';
     return msg.str();
 }
 ESDecisionValue modGetESDecVal( value_map_t& decVals, const scnXml::HSESTreatmentModifierEffect& mod, const string& errObj ){
@@ -105,7 +107,9 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 	}
 	schedules.clear();
 	
-	value_map_t decVals = dvMap.getDecision( modifier.getDecision() ).second;	// copy
+	pair<ESDecisionValue, const value_map_t&> decPair = dvMap.getDecision( modifier.getDecision() );
+	schedulesMask |= decPair.first;
+	value_map_t decVals = decPair.second;	// copy
 	schedules.rehash( decVals.size() / schedules.max_load_factor() + 1 );
 	
 	//FIXME: select modifications MUST happen before delay modifications to conform to spec!
@@ -145,13 +149,18 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 		    schedules[ s->first | val ] = ts;
 		}
 	    }
-	} else
-	    throw xml_scenario_error( "modifier element without any sub-elements" );
+	} else {
+	    ostringstream msg;
+	    msg << "treatment \""<<elt.getName()
+		<<"\" modifier for decision "<<modifier.getDecision()
+		<<" has no sub-elements";
+	    throw xml_scenario_error( msg.str() );
+	}
 	
 	if( !decVals.empty() ){
 	    ostringstream msg;
-	    msg << "modifier for treatment "<<elt.getName()
-		<< " by decision "<<modifier.getDecision()
+	    msg << "modifier for treatment \""<<elt.getName()
+		<< "\" by decision "<<modifier.getDecision()
 		<<": effect not described for values:";
 	    for( value_map_t::iterator it = decVals.begin(); it != decVals.end(); ++it )
 		msg<<' '<<it->first;
@@ -162,6 +171,13 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
     for( Schedules::iterator it = startSchedules.begin(); it != startSchedules.end(); ++it ) {
 	delete it->second;
     }
+    /*
+    cout<<"schedules for "<<elt.getName()<<":";
+    for( Schedules::iterator it = schedules.begin(); it != schedules.end(); ++it ) {
+	cout<<" "<<it->first<<" ["<<dvMap.format( it->first )<<"];";
+    }
+    cout<<"\nmask: "<<schedulesMask<<endl;
+    */
 }
 
 ESTreatment::~ESTreatment() {
@@ -290,6 +306,8 @@ ESTreatmentSchedule* ESDecisionMap::getSchedule (ESDecisionValue outcome) const 
 	ESTreatmentSchedule* ret = it->second->getSchedule( outcome );
 	if( ret != NULL )
 	    return ret;
+	else
+	    throw logic_error("ESDecisionMap: null treatment (code error)!");
 	masked = masked & outcome;
     }
     

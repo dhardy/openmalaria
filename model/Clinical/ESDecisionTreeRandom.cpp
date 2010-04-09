@@ -105,6 +105,7 @@ namespace OM { namespace Clinical {
 		}
 		
 		// find/make an entry for dependent decisions:
+		//NOTE: valgrind complains about a memory leak _here_.. why?
 		vector<double>& outcomes_cum_p = dR.map_cum_p[ dependValues ];
 		/* print cum-prob-array (part 1):
 		if( outcomes_cum_p.empty() ) cout << "new ";

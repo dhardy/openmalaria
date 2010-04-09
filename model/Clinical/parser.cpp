@@ -40,6 +40,9 @@ namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
 using namespace boost::phoenix;
 
+typedef std::pair<string,OM::Clinical::parser::DoubleRange> SymbolRangePair;
+typedef std::vector<SymbolRangePair> SymbolRangeList;
+
 // We need to tell fusion about our Branch struct to make it a first-class
 // fusion citizen. This has to be in global scope.
 BOOST_FUSION_ADAPT_STRUCT(
@@ -47,6 +50,16 @@ BOOST_FUSION_ADAPT_STRUCT(
     (std::string, decision)
     (std::string, dec_value)
     (OM::Clinical::parser::Outcome, outcome)
+)
+BOOST_FUSION_ADAPT_STRUCT(
+    OM::Clinical::parser::DoubleRange,
+    (double, first)
+    (double, second)
+)
+BOOST_FUSION_ADAPT_STRUCT(
+    SymbolRangePair,
+    (string, first)
+    (OM::Clinical::parser::DoubleRange, second)
 )
 
 namespace OM { namespace Clinical {
@@ -92,7 +105,6 @@ namespace OM { namespace Clinical {
 	struct SymbolValueMap_grammar : qi::grammar<Iterator, SymbolValueMap(), ascii::space_type> {
 	    SymbolValueMap_grammar() : SymbolValueMap_grammar::base_type(map) {
 		using qi::alnum;
-		using qi::digit;
 		using qi::lexeme;
 		using qi::double_;
 		using qi::_val;
@@ -100,6 +112,7 @@ namespace OM { namespace Clinical {
 		using qi::_2;
 		
 		symbol %= lexeme[ +( alnum | '.' | '_' ) ];
+		// conveniently enters stuff into a map, but doesn't seem to work when value-type is not fundamental:
 		map = (symbol > '(' > double_ > ')')[_val[_1] = _2] % ',';
 	    }
 	    
@@ -108,8 +121,8 @@ namespace OM { namespace Clinical {
 	};
 	
 	template <typename Iterator>
-	struct SymbolRangeMap_grammar : qi::grammar<Iterator, SymbolRangeMap(), ascii::space_type> {
-	    SymbolRangeMap_grammar() : SymbolRangeMap_grammar::base_type(map) {
+	struct SymbolRangeList_grammar : qi::grammar<Iterator, SymbolRangeList(), ascii::space_type> {
+	    SymbolRangeList_grammar() : SymbolRangeList_grammar::base_type(list) {
 		using qi::alnum;
 		using qi::digit;
 		using qi::lexeme;
@@ -117,14 +130,17 @@ namespace OM { namespace Clinical {
 		using qi::_val;
 		using qi::_1;
 		using qi::_2;
-		using qi::_3;
 		
 		symbol %= lexeme[ +( alnum | '.' | '_' ) ];
-		map = (symbol > '(' > double_ > '-' > double_ > ')')[_val[_1] = construct< pair<double,double > >(_2,_3)] % ',';
+		value %= double_ > '-' > double_;
+		pair %= symbol > '(' > value > ')';
+		list %= pair % ',';
 	    }
 	    
 	    qi::rule<Iterator, string(), ascii::space_type> symbol;
-	    qi::rule<Iterator, SymbolRangeMap(), ascii::space_type> map;
+	    qi::rule<Iterator, DoubleRange(), ascii::space_type> value;
+	    qi::rule<Iterator, SymbolRangePair(), ascii::space_type> pair;
+	    qi::rule<Iterator, SymbolRangeList(), ascii::space_type> list;
 	};
     }
     
@@ -201,15 +217,15 @@ namespace OM { namespace Clinical {
     }
     
     parser::SymbolRangeMap parser::parseSymbolRangeMap (const string& s, const string& errObj) {
-	parser::SymbolRangeMap_grammar<iter_t> list_rule;
+	parser::SymbolRangeList_grammar<iter_t> list_rule;
 	iter_t first = s.begin(); // we need a copy of the iterator, not a temporary
-	SymbolRangeMap ret;
+	SymbolRangeList list;
 	
 	qi::phrase_parse(
 		first, s.end(),	// iterators
 		list_rule,		// rule
 		ascii::space,	// space skipper
-		ret			// output (type must match rule's attribute type)
+		list			// output (type must match rule's attribute type)
 	);
 	
 	if (first != s.end ()) {
@@ -220,6 +236,11 @@ namespace OM { namespace Clinical {
 	    ;
 	    throw xml_scenario_error (msg.str());
 	}
+	
+	// Now convert to a map (filling directly didn't work):
+	SymbolRangeMap ret;
+	for( SymbolRangeList::const_iterator it = list.begin(); it != list.end(); ++it )
+	    ret[it->first] = it->second;
 	
 	return ret;
     }
