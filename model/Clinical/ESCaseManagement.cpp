@@ -66,7 +66,6 @@ void ESTreatmentSchedule::selectTimeRange (const map< string, pair<double,double
 	if( it == m.end() )
 	    throw xml_scenario_error( (boost::format("%1%: no effect described for drug (ingredient) %2%") %errObj %med->abbrev).str() );
 	double timeH = med->time * 24.0;	// convert back to hours for comparisons
-	cout<<"selectTimeRange with range ["<<it->second.first<<','<<it->second.second<<"), time: "<<timeH<<endl;
 	if( it->second.first <= timeH && timeH < it->second.second )
 	    ++med;
 	else
@@ -97,25 +96,34 @@ ESDecisionValue modGetESDecVal( value_map_t& decVals, const scnXml::HSESTreatmen
 }
 
 ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTreatment& elt) {
+    // We need to apply all select-time-range modifiers before any delay
+    // modifiers. The easiest solution is to reorder the list:
+    list<const scnXml::HSESTreatmentModifier*> modifierList;
+    BOOST_FOREACH( const scnXml::HSESTreatmentModifier& modifier, elt.getModifier() ){
+	if( modifier.getSelectTimeRange().size() )
+	    modifierList.push_front( &modifier );
+	else
+	    modifierList.push_back( &modifier );
+    }
+    
     schedules[ ESDecisionValue() ] = new ESTreatmentSchedule( elt.getSchedule() );
     Schedules startSchedules;
     
-    BOOST_FOREACH( const scnXml::HSESTreatmentModifier& modifier, elt.getModifier() ){
+    BOOST_FOREACH( const scnXml::HSESTreatmentModifier* modifier, modifierList ){
 	schedules.swap( startSchedules );
 	for( Schedules::iterator it = schedules.begin(); it != schedules.end(); ++it ) {
 	    delete it->second;
 	}
 	schedules.clear();
 	
-	pair<ESDecisionValue, const value_map_t&> decPair = dvMap.getDecision( modifier.getDecision() );
+	pair<ESDecisionValue, const value_map_t&> decPair = dvMap.getDecision( modifier->getDecision() );
 	schedulesMask |= decPair.first;
 	value_map_t decVals = decPair.second;	// copy
 	schedules.rehash( decVals.size() / schedules.max_load_factor() + 1 );
 	
-	//FIXME: select modifications MUST happen before delay modifications to conform to spec!
-	if( modifier.getMultiplyQty().size() ) {
-	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier.getMultiplyQty() ){
-		string errObj = modFormatErrMsg( elt.getName(), modifier.getDecision(), mod.getValue() );
+	if( modifier->getMultiplyQty().size() ) {
+	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier->getMultiplyQty() ){
+		string errObj = modFormatErrMsg( elt.getName(), modifier->getDecision(), mod.getValue() );
 		ESDecisionValue val = modGetESDecVal( decVals, mod, errObj );
 		const parser::SymbolValueMap& m = parser::parseSymbolValueMap( mod.getEffect(), errObj );
 		
@@ -125,9 +133,9 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 		    schedules[ s->first | val ] = ts;
 		}
 	    }
-	} else if( modifier.getDelay().size() ) {
-	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier.getDelay() ){
-		string errObj = modFormatErrMsg( elt.getName(), modifier.getDecision(), mod.getValue() );
+	} else if( modifier->getDelay().size() ) {
+	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier->getDelay() ){
+		string errObj = modFormatErrMsg( elt.getName(), modifier->getDecision(), mod.getValue() );
 		ESDecisionValue val = modGetESDecVal( decVals, mod, errObj );
 		const parser::SymbolValueMap& m = parser::parseSymbolValueMap( mod.getEffect(), errObj );
 		
@@ -137,9 +145,9 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 		    schedules[ s->first | val ] = ts;
 		}
 	    }
-	} else if( modifier.getSelectTimeRange().size() ) {
-	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier.getSelectTimeRange() ){
-		string errObj = modFormatErrMsg( elt.getName(), modifier.getDecision(), mod.getValue() );
+	} else if( modifier->getSelectTimeRange().size() ) {
+	    BOOST_FOREACH( const scnXml::HSESTreatmentModifierEffect& mod, modifier->getSelectTimeRange() ){
+		string errObj = modFormatErrMsg( elt.getName(), modifier->getDecision(), mod.getValue() );
 		ESDecisionValue val = modGetESDecVal( decVals, mod, errObj );
 		const parser::SymbolRangeMap& m = parser::parseSymbolRangeMap( mod.getEffect(), errObj );
 		
@@ -152,7 +160,7 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 	} else {
 	    ostringstream msg;
 	    msg << "treatment \""<<elt.getName()
-		<<"\" modifier for decision "<<modifier.getDecision()
+		<<"\" modifier for decision "<<modifier->getDecision()
 		<<" has no sub-elements";
 	    throw xml_scenario_error( msg.str() );
 	}
@@ -160,7 +168,7 @@ ESTreatment::ESTreatment(const ESDecisionValueMap& dvMap, const scnXml::HSESTrea
 	if( !decVals.empty() ){
 	    ostringstream msg;
 	    msg << "modifier for treatment \""<<elt.getName()
-		<< "\" by decision "<<modifier.getDecision()
+		<< "\" by decision "<<modifier->getDecision()
 		<<": effect not described for values:";
 	    for( value_map_t::iterator it = decVals.begin(); it != decVals.end(); ++it )
 		msg<<' '<<it->first;

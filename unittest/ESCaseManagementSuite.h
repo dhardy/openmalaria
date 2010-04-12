@@ -144,12 +144,12 @@ public:
 	const MedicateData& md1 = medQueue.front();
 	TS_ASSERT_EQUALS( md1.abbrev, "A" );
 	TS_ASSERT_EQUALS( md1.qty, 500.0 );
-	TS_ASSERT_EQUALS( md1.time, 5.0 );
+	TS_ASSERT_DELTA( md1.time, 5.0/24.0, 1.0e-10 );
 	medQueue.pop_front();
 	const MedicateData& md2 = medQueue.front();
 	TS_ASSERT_EQUALS( md2.abbrev, "B" );
 	TS_ASSERT_EQUALS( md2.qty, 600.0 );
-	TS_ASSERT_EQUALS( md2.time, 19.0 );
+	TS_ASSERT_DELTA( md2.time, 19.0/24.0, 1.0e-10 );
     }
     
 private:
